@@ -1,0 +1,11 @@
+{
+  "blend": "scenes/real/bite.blend",
+  "start": 1, "end": 96,
+  "fps": 30,
+  "res": [1080, 1920],
+  "output": [1080, 1920],
+  "samples": 64,
+  "noise_threshold": 0.03,
+  "max_bounces": 8,
+  "chunks": 20
+}
