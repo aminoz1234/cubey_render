@@ -1,0 +1,9 @@
+{
+  "blend": "scenes/seed/seed.blend",
+  "start": 1, "end": 1087,
+  "fps": 30,
+  "res": [360, 640],
+  "output": [720, 1280],
+  "samples": 10,
+  "chunks": 20
+}
