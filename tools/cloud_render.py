@@ -4,15 +4,16 @@ import bpy, json, os, sys, time
 args = sys.argv[sys.argv.index("--") + 1:]
 job = json.load(open(args[0])); start, end, outdir = int(args[1]), int(args[2]), args[3]
 s = bpy.context.scene
-w, h = job.get("res", [720, 1280])
+w, h = job.get("res", [720, 1280])  # default: render 720p, stitch upscales to 1080p
 s.render.resolution_x, s.render.resolution_y, s.render.resolution_percentage = int(w), int(h), 100
 s.render.fps = int(job.get("fps", 30))
 s.render.engine = "CYCLES"
 c = s.cycles
 c.device = "CPU"
-c.samples = int(job.get("samples", 32))
+c.samples = int(job.get("samples", 40))  # fast default; OIDN denoise cleans the rest
 c.use_adaptive_sampling = True
 c.adaptive_threshold = float(job.get("noise_threshold", 0.05))
+c.denoising_input_passes = "RGB_ALBEDO_NORMAL"; c.denoising_prefilter = "ACCURATE"
 c.use_denoising = True
 c.denoiser = "OPENIMAGEDENOISE"
 c.max_bounces = int(job.get("max_bounces", 6))
