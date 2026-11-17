@@ -1,0 +1,2 @@
+{ "blend": "scenes/real/man_beats.blend", "start": 1, "end": 155, "fps": 30,
+  "res": [720, 1280], "output": [1080, 1920], "samples": 40, "chunks": 20 }

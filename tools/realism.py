@@ -10,7 +10,7 @@ def _nodes(m):
     return nt, nt.nodes, nt.links
 
 
-def tissue(name, base=(0.55, 0.08, 0.07), crease=(0.18, 0.02, 0.02), sss=0.35, wet=1.0, bump=0.35, scale=6.0):
+def tissue(name, base=(0.55, 0.08, 0.07), crease=(0.18, 0.02, 0.02), sss=0.35, wet=1.0, bump=0.35, scale=6.0, veins=0.12):
     """Wet living tissue: subsurface flesh, darker creases (pointiness), mucus coat, fine bumpy detail, veins."""
     m = bpy.data.materials.new(name); nt, N, L = _nodes(m)
     b = N["Principled BSDF"]
@@ -21,13 +21,13 @@ def tissue(name, base=(0.55, 0.08, 0.07), crease=(0.18, 0.02, 0.02), sss=0.35, w
     L.new(geo.outputs["Pointiness"], ramp.inputs[0])
     # veins: thin dark-red voronoi edges mixed into the color
     tc = N.new("ShaderNodeTexCoord")
-    vor = N.new("ShaderNodeTexVoronoi"); vor.feature = "DISTANCE_TO_EDGE"; vor.inputs["Scale"].default_value = scale * 0.6
+    vor = N.new("ShaderNodeTexVoronoi"); vor.feature = "DISTANCE_TO_EDGE"; vor.inputs["Scale"].default_value = scale * 1.6
     L.new(tc.outputs["Object"], vor.inputs["Vector"])
     vr = N.new("ShaderNodeValToRGB")
     vr.color_ramp.elements[0].position = 0.0; vr.color_ramp.elements[0].color = (0.25, 0.01, 0.02, 1)
-    vr.color_ramp.elements[1].position = 0.035; vr.color_ramp.elements[1].color = (1, 1, 1, 1)
+    vr.color_ramp.elements[1].position = 0.02; vr.color_ramp.elements[1].color = (1, 1, 1, 1)
     L.new(vor.outputs["Distance"], vr.inputs[0])
-    mix = N.new("ShaderNodeMix"); mix.data_type = "RGBA"; mix.blend_type = "MULTIPLY"; mix.inputs["Factor"].default_value = 0.55
+    mix = N.new("ShaderNodeMix"); mix.data_type = "RGBA"; mix.blend_type = "MULTIPLY"; mix.inputs["Factor"].default_value = veins
     L.new(ramp.outputs["Color"], mix.inputs["A"]); L.new(vr.outputs["Color"], mix.inputs["B"])
     L.new(mix.outputs["Result"], b.inputs["Base Color"])
     b.inputs["Subsurface Weight"].default_value = sss
