@@ -1,0 +1,109 @@
+name: render
+
+# Renders a Blender scene on GitHub's free runners.
+# Start it by pushing a job file in jobs/, or from the Actions tab ("Run workflow").
+on:
+  push:
+    branches: [main]
+    paths: ["jobs/**.json"]
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Job file in jobs/ (without .json)"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: render-${{ github.ref }}-${{ inputs.job || github.sha }}
+  cancel-in-progress: false
+
+env:
+  BLENDER_VERSION: "5.2.4"
+  BLENDER_SERIES: "5.2"
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      job: ${{ steps.p.outputs.job }}
+      matrix: ${{ steps.p.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 2 }
+      - id: p
+        run: |
+          JOB="${{ inputs.job }}"
+          if [ -z "$JOB" ]; then
+            JOB=$(git diff --name-only HEAD~1 HEAD -- jobs/ | grep '\.json$' | head -1 | xargs -r basename | sed 's/\.json$//')
+          fi
+          [ -n "$JOB" ] && [ -f "jobs/$JOB.json" ] || { echo "No job file found"; exit 1; }
+          echo "job=$JOB" >> "$GITHUB_OUTPUT"
+          python3 tools/plan.py "jobs/$JOB.json" >> "$GITHUB_OUTPUT"
+
+  render:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        chunk: ${{ fromJson(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: true }
+      - name: Cache Blender
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/blender
+          key: blender-${{ env.BLENDER_VERSION }}-linux-x64
+      - name: Download Blender
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/blender
+          curl -fsSL "https://download.blender.org/release/Blender${BLENDER_SERIES}/blender-${BLENDER_VERSION}-linux-x64.tar.xz" \
+            | tar -xJ -C ~/blender --strip-components=1
+      - name: Libraries Blender needs
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxi6 libxkbcommon0 libxrender1 libxxf86vm1 libxfixes3 libsm6 libgl1 libegl1 >/dev/null
+      - name: Render frames ${{ matrix.chunk.start }}-${{ matrix.chunk.end }}
+        run: |
+          ~/blender/blender -b "$(python3 -c "import json;print(json.load(open('jobs/${{ needs.plan.outputs.job }}.json'))['blend'])")" \
+            --python tools/cloud_render.py -- "jobs/${{ needs.plan.outputs.job }}.json" ${{ matrix.chunk.start }} ${{ matrix.chunk.end }} out \
+            2>&1 | grep -E "CUBEY|Error|error|Traceback" || true
+          ls out/*.png >/dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frames-${{ matrix.chunk.start }}
+          path: out/
+          retention-days: 3
+          compression-level: 0
+
+  stitch:
+    needs: [plan, render]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: true }
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: frames-*
+          path: frames
+          merge-multiple: true
+      - name: Make the MP4
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null
+          python3 tools/stitch.py "jobs/${{ needs.plan.outputs.job }}.json" frames "${{ needs.plan.outputs.job }}.mp4" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: video-${{ needs.plan.outputs.job }}
+          path: ${{ needs.plan.outputs.job }}.mp4
+          compression-level: 0
+      - name: Publish as a release (easy download link)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ needs.plan.outputs.job }}-run${{ github.run_number }}"
+          gh release create "$TAG" "${{ needs.plan.outputs.job }}.mp4" --title "$TAG" --notes "Rendered by run ${{ github.run_id }}" 

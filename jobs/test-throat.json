@@ -1,0 +1,9 @@
+{
+  "blend": "scenes/test/throat.blend",
+  "start": 1, "end": 90,
+  "fps": 30,
+  "res": [720, 1280],
+  "output": [1080, 1920],
+  "samples": 20,
+  "chunks": 10
+}
