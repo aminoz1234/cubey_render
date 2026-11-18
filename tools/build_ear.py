@@ -541,7 +541,7 @@ bug2.rotation_euler = (0, 0, math.radians(200))
 bug2.location = (0.01, 0.06, 0.036); bug2.keyframe_insert("location", frame=RANGE["end"][0])
 bug2.location = (0.02, 0.0, 0.037); bug2.keyframe_insert("location", frame=RANGE["end"][1])
 bug2["spd"] = 0.7; bug2["amp"] = 1.0
-bug_fill = area("bug_fill", wp[2] + Vector((0.12, -0.22, 0.25)), wp[3], 1.2, 0.5, (0.8, 0.85, 1.0))
+bug_fill = area("bug_fill", wp[2] + Vector((0.12, -0.22, 0.25)), wp[3], 1.2, 0.5, (1.0, 0.82, 0.62))
 key_energy(bug_fill, [(1, 1.2), (RANGE["ear"][1] + 1, 0.0), (RANGE["end"][0], 0.6)])
 # ================================================================ TWEEZERS (clinic): grab the bug out of the canal
 m_steel = mat("steel", (0.72, 0.72, 0.74), rough=0.22, metal=1.0)
@@ -629,7 +629,7 @@ L.new(sp.outputs["Z"], zmask.inputs["Value"])
 mlm = N.new("ShaderNodeMath"); mlm.operation = "MULTIPLY"; L.new(st.outputs["Result"], mlm.inputs[0]); L.new(zmask.outputs["Result"], mlm.inputs[1])
 vor = N.new("ShaderNodeTexVoronoi"); vor.feature = "DISTANCE_TO_EDGE"; vor.inputs["Scale"].default_value = 30
 L.new(tc.outputs["Object"], vor.inputs["Vector"])
-vr = N.new("ShaderNodeValToRGB"); vr.color_ramp.elements[0].color = (0.5, 0.12, 0.1, 1); vr.color_ramp.elements[1].position = 0.04
+vr = N.new("ShaderNodeValToRGB"); vr.color_ramp.elements[0].color = (0.58, 0.3, 0.26, 1); vr.color_ramp.elements[1].position = 0.012
 vr.color_ramp.elements[1].color = (0.62, 0.58, 0.56, 1); L.new(vor.outputs["Distance"], vr.inputs[0])
 cm = N.new("ShaderNodeMix"); cm.data_type = "RGBA"; L.new(mlm.outputs[0], cm.inputs["Factor"]); L.new(vr.outputs["Color"], cm.inputs["A"])
 cm.inputs["B"].default_value = (0.92, 0.88, 0.8, 1); L.new(cm.outputs["Result"], b.inputs["Base Color"])
@@ -797,9 +797,10 @@ key(c2, "location", RANGE["pillow"][0], c2.location.copy()); key(c2, "location",
 c3, a3 = camera("C03_ear", E + Vector((0.07, -0.09, 0.1)), E + Vector((-0.01, 0, 0)), lens=60, fstop=8.0)
 key(c3, "location", RANGE["ear"][0], c3.location.copy()); key(c3, "location", RANGE["ear"][1], E + Vector((0.045, -0.06, 0.07)))
 # 4 inside the canal, riding behind the bug
-c4, a4 = camera("C04_canal", Vector((0, 0, 0)), Vector((0, 0, 0)), lens=18, fstop=5.6, focus=ib, clip=0.002)
+c4, a4 = camera("C04_canal", Vector((0, 0, 0)), Vector((0, 0, 0)), lens=18, fstop=11, focus=ib, clip=0.002)
 c4.constraints.remove(c4.constraints["Track To"])
-c4.parent = ib; c4.location = (0, -0.21, 0.052); c4.rotation_euler = (math.radians(80), 0, 0)
+c4.parent = ib; c4.location = (0, -0.3, 0.045); c4.rotation_euler = (math.radians(84), 0, 0)
+point("bug_in_ahead", Vector((0, 0.35, 0.03)), 0.04, (1.0, 0.8, 0.65), r=0.01, parent=ib)
 cam_light(c4, 0.05, shot='canal')
 # 5 stuck: face to face with the bug, from the eardrum
 dpos = canal_pts[-1]
@@ -822,11 +823,11 @@ look_at(c7, eye_c, (-1, 0, 0)); c7.data.dof.focus_object = a7
 shake(c7, LOUD, LOUD + 14, 0.008)
 # 8 otoscope: looking down the canal from the entrance, bright ring light
 c8, a8 = camera("C08_scope", Vector((X0C - 0.02, 0, 0.004)), dpos, lens=24, fstop=8, clip=0.002)
-cam_light(c8, 0.05, (0.95, 0.97, 1.0), shot='scope')
+cam_light(c8, 0.4, (0.95, 0.97, 1.0), shot='scope')
 key(c8, "location", RANGE["scope"][0], c8.location.copy()); key(c8, "location", RANGE["scope"][1], Vector((X0C + 0.05, 0, 0.004)))
 # 9 oil floods in, seen from the drum
 c9, a9 = camera("C09_oil", dpos + Vector((-0.022, -0.012, 0.034)), Vector((X0C + 0.15, 0, -0.03)), lens=16, fstop=8, clip=0.002)
-cam_light(c9, 0.03, shot='oil')
+cam_light(c9, 0.08, shot='oil')
 key_energy(point("oil_glow", Vector((X0C + 0.02, 0, 0)), 0.15, (1.0, 0.85, 0.6), r=0.02), [(1, 0.0), (RANGE["oil"][0], 0.15), (RANGE["oil"][1] + 1, 0.0)])
 # 10 "not even the worst": slow push into the dark canal, drum glowing red
 c10, a10 = camera("C10_dark", Vector((X0C + 0.02, 0, 0.0)), dpos, lens=24, fstop=8, clip=0.002)
@@ -834,14 +835,16 @@ key(c10, "location", RANGE["dark"][0], c10.location.copy()); key(c10, "location"
 # 11-12 clinic: tweezers go in, pull the bug out
 c11, a11 = camera("C11_tweez", E + Vector((0.05, -0.12, 0.11)), E + Vector((0.0, -0.005, 0.01)), lens=50, fstop=4.0)
 key(c11, "location", RANGE["tweez"][0], c11.location.copy()); key(c11, "location", RANGE["tweez"][1], E + Vector((0.04, -0.1, 0.09)))
-c12, a12 = camera("C12_pull", E + Vector((0.09, -0.16, 0.12)), E + Vector((0.0, -0.02, 0.035)), lens=40, fstop=4.0, focus=pulled)
+c12, a12 = camera("C12_pull", E + Vector((0.09, -0.16, 0.12)), E + Vector((0.0, -0.02, 0.035)), lens=65, fstop=4.0, focus=pulled)
 c12.constraints["Track To"].target = pulled
 # 13 the tray
 c13, a13 = camera("C13_tray", Vector((X0T - 0.2, -0.75, 0.6)), Vector((X0T + 0.05, 0.0, 0.02)), lens=45, fstop=2.8)
 key(c13, "location", RANGE["tray"][0], c13.location.copy()); key(c13, "location", RANGE["tray"][1], Vector((X0T - 0.15, -0.6, 0.48)))
 # 14 back in bed: chips by his face, a bug peeking out of the bag; settles into shot 1's framing
-c14, a14 = camera("C14_end", head_c + Vector((0.2, -0.75, 0.45)), Vector((-0.1, -0.3, MT + 0.05)), lens=40, fstop=3.5)
+bag_c = bag.location.copy()
+c14, a14 = camera("C14_end", bag_c + Vector((0.12, -0.2, 0.17)), bag_c + Vector((0.0, 0.0, 0.03)), lens=50, fstop=4.0)
 key(c14, "location", RANGE["end"][0], c14.location.copy()); key(c14, "location", RANGE["end"][1], head_c + Vector((0.42, -0.85, 0.62)))
+c14.data.lens = 50; c14.data.keyframe_insert("lens", frame=RANGE["end"][0] + 12); c14.data.lens = 32; c14.data.keyframe_insert("lens", frame=RANGE["end"][1])
 key(a14, "location", RANGE["end"][0], a14.location.copy()); key(a14, "location", RANGE["end"][1], head_c + Vector((-0.06, -0.08, -0.02)))
 
 for nm, cam in (("wide", c1), ("pillow", c2), ("ear", c3), ("canal", c4), ("stuck", c5), ("drum", c6), ("eyes", c7),

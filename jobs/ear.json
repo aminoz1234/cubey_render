@@ -1,0 +1,2 @@
+{ "blend": "scenes/ear/ear.blend", "start": 1, "end": 955, "fps": 30,
+  "res": [720, 1280], "output": [1080, 1920], "samples": 24, "chunks": 20 }

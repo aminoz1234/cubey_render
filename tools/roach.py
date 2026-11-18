@@ -74,7 +74,7 @@ def _pronotum_mat(name, pale, dark):
     cr.elements[1].position = 0.5; cr.elements[1].color = (*pale, 1)
     L.new(ab.outputs[0], rp.inputs[0]); L.new(rp.outputs["Color"], b.inputs["Base Color"])
     b.inputs["Roughness"].default_value = 0.25; b.inputs["Coat Weight"].default_value = 0.7; b.inputs["Coat Roughness"].default_value = 0.12
-    b.inputs["Subsurface Weight"].default_value = 0.25; b.inputs["Subsurface Radius"].default_value = (1.0, 0.5, 0.2)
+    b.inputs["Subsurface Weight"].default_value = 0.08; b.inputs["Subsurface Radius"].default_value = (1.0, 0.5, 0.2)
     b.inputs["Subsurface Scale"].default_value = 0.004
     return m
 
@@ -92,11 +92,11 @@ def _wing_mat(name, col):
     vr = N.new("ShaderNodeValToRGB"); vr.color_ramp.elements[0].color = (col[0] * 0.45, col[1] * 0.45, col[2] * 0.45, 1)
     vr.color_ramp.elements[0].position = 0.0; vr.color_ramp.elements[1].position = 0.18; vr.color_ramp.elements[1].color = (*col, 1)
     L.new(wv.outputs["Fac"], vr.inputs[0]); L.new(vr.outputs["Color"], b.inputs["Base Color"])
-    bp = N.new("ShaderNodeBump"); bp.inputs["Strength"].default_value = 0.45; L.new(wv.outputs["Fac"], bp.inputs["Height"])
+    bp = N.new("ShaderNodeBump"); bp.inputs["Strength"].default_value = 0.12; L.new(wv.outputs["Fac"], bp.inputs["Height"])
     L.new(bp.outputs["Normal"], b.inputs["Normal"])
-    b.inputs["Roughness"].default_value = 0.22; b.inputs["Coat Weight"].default_value = 0.8; b.inputs["Coat Roughness"].default_value = 0.1
-    b.inputs["Transmission Weight"].default_value = 0.25
-    b.inputs["Subsurface Weight"].default_value = 0.2; b.inputs["Subsurface Radius"].default_value = (1.0, 0.45, 0.15)
+    b.inputs["Roughness"].default_value = 0.35; b.inputs["Coat Weight"].default_value = 0.6; b.inputs["Coat Roughness"].default_value = 0.12
+    b.inputs["Transmission Weight"].default_value = 0.0
+    b.inputs["Subsurface Weight"].default_value = 0.08; b.inputs["Subsurface Radius"].default_value = (1.0, 0.45, 0.15)
     b.inputs["Subsurface Scale"].default_value = 0.004
     return m
 
@@ -158,7 +158,7 @@ def roach(name, scale=0.02, nymph=False, seed=1, palette=None):
         m_abd = _band_mat("rc_abd_" + tag, (0.2, 0.12, 0.06), (0.025, 0.015, 0.008), bands=7.5, sss=0.25)
         m_leg = _mat("rc_leg_" + tag, (0.32, 0.22, 0.13), rough=0.35, coat=0.5, sss=0.35)
     else:
-        pale, dark = (0.42, 0.24, 0.09), (0.015, 0.008, 0.004)
+        pale, dark = (0.24, 0.12, 0.04), (0.012, 0.006, 0.003)
         m_abd = _band_mat("rc_abd_" + tag, (0.12, 0.05, 0.018), (0.02, 0.01, 0.005), bands=7.5)
         m_leg = _mat("rc_leg_" + tag, (0.2, 0.09, 0.03), rough=0.32, coat=0.5, sss=0.3)
     m_pro = _pronotum_mat("rc_pro_" + tag, pale, dark)
@@ -176,7 +176,7 @@ def roach(name, scale=0.02, nymph=False, seed=1, palette=None):
         # cerci
         _tube(name + f"_cerc{s}", [(0.05 * s, -0.46, 0.12), (0.1 * s, -0.56, 0.11), (0.13 * s, -0.6, 0.1)], [0.018, 0.012, 0.004], m_leg, body)
     if not nymph:
-        m_wing = _wing_mat("rc_wing", (0.2, 0.085, 0.025))
+        m_wing = _wing_mat("rc_wing", (0.14, 0.055, 0.016))
         for s in (-1, 1):
             _ellipsoid(name + f"_wing{s}", (0.055 * s, -0.14, 0.18), (0.13, 0.4, 0.03), m_wing, body,
                        rot=(math.radians(-3), math.radians(-6 * s), math.radians(-3 * s)))
