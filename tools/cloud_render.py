@@ -17,7 +17,16 @@ c.adaptive_threshold = float(job.get("noise_threshold", 0.05))
 c.denoising_input_passes = "RGB_ALBEDO_NORMAL"; c.denoising_prefilter = "ACCURATE"
 c.use_denoising = True
 c.denoiser = "OPENIMAGEDENOISE"
-c.max_bounces = int(job.get("max_bounces", 6))
+c.max_bounces = int(job.get("max_bounces", 4))          # fewer bounces: most of the look is direct light
+c.diffuse_bounces = 2; c.glossy_bounces = 2; c.transmission_bounces = 4; c.volume_bounces = 0
+c.caustics_reflective = False; c.caustics_refractive = False   # caustics = noise for little gain
+c.blur_glossy = 1.0                                           # filter glossy: kills glossy noise
+c.sample_clamp_indirect = 10.0                                # no fireflies from bright bounces
+for m in bpy.data.materials:                                  # cheaper skin/tissue scattering
+    if m.use_nodes:
+        for n in m.node_tree.nodes:
+            if n.type == "BSDF_PRINCIPLED" and hasattr(n, "subsurface_method"):
+                n.subsurface_method = "BURLEY"
 c.transparent_max_bounces = max(8, c.transparent_max_bounces)
 s.render.use_persistent_data = True
 s.render.threads_mode = "AUTO"
