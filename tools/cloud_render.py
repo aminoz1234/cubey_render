@@ -26,7 +26,7 @@ s.render.image_settings.color_mode = "RGB"
 s.render.use_file_extension = True
 os.makedirs(outdir, exist_ok=True)
 t0 = time.time()
-frames = list(range(start, end + 1, step))
+frames = job["frames"][start::step] if "frames" in job else list(range(start, end + 1, step))
 for f in frames:
     s.frame_set(f)
     s.render.filepath = os.path.join(outdir, f"{f:05d}.png")

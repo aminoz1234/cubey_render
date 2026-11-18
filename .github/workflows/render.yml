@@ -83,6 +83,7 @@ jobs:
 
   stitch:
     needs: [plan, render]
+    if: ${{ !contains(needs.plan.outputs.job, 'rescue') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
