@@ -68,10 +68,10 @@ jobs:
             | tar -xJ -C ~/blender --strip-components=1
       - name: Libraries Blender needs
         run: sudo apt-get update -qq && sudo apt-get install -y -qq libxi6 libxkbcommon0 libxrender1 libxxf86vm1 libxfixes3 libsm6 libgl1 libegl1 >/dev/null
-      - name: Render frames ${{ matrix.chunk.start }}-${{ matrix.chunk.end }}
+      - name: Render every ${{ matrix.chunk.step }}th frame from ${{ matrix.chunk.start }}
         run: |
           ~/blender/blender -b "$(python3 -c "import json;print(json.load(open('jobs/${{ needs.plan.outputs.job }}.json'))['blend'])")" \
-            --python tools/cloud_render.py -- "jobs/${{ needs.plan.outputs.job }}.json" ${{ matrix.chunk.start }} ${{ matrix.chunk.end }} out \
+            --python tools/cloud_render.py -- "jobs/${{ needs.plan.outputs.job }}.json" ${{ matrix.chunk.start }} ${{ matrix.chunk.end }} out ${{ matrix.chunk.step }} \
             2>&1 | grep -E "CUBEY|Error|error|Traceback" || true
           ls out/*.png >/dev/null
       - uses: actions/upload-artifact@v4

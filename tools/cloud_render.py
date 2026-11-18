@@ -3,6 +3,7 @@ Usage: blender -b scene.blend --python tools/cloud_render.py -- job.json START E
 import bpy, json, os, sys, time
 args = sys.argv[sys.argv.index("--") + 1:]
 job = json.load(open(args[0])); start, end, outdir = int(args[1]), int(args[2]), args[3]
+step = int(args[4]) if len(args) > 4 and args[4] else 1
 s = bpy.context.scene
 w, h = job.get("res", [720, 1280])  # default: render 720p, stitch upscales to 1080p
 s.render.resolution_x, s.render.resolution_y, s.render.resolution_percentage = int(w), int(h), 100
@@ -25,11 +26,12 @@ s.render.image_settings.color_mode = "RGB"
 s.render.use_file_extension = True
 os.makedirs(outdir, exist_ok=True)
 t0 = time.time()
-for f in range(start, end + 1):
+frames = list(range(start, end + 1, step))
+for f in frames:
     s.frame_set(f)
     s.render.filepath = os.path.join(outdir, f"{f:05d}.png")
     tf = time.time()
     bpy.ops.render.render(write_still=True)
     print(f"CUBEY frame {f} {time.time() - tf:.1f}s", flush=True)
-n = end - start + 1
+n = len(frames)
 print(f"CUBEY chunk {start}-{end}: {n} frames in {time.time() - t0:.0f}s ({(time.time() - t0) / n:.1f}s/frame)", flush=True)
