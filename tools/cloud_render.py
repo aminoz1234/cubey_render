@@ -35,12 +35,71 @@ s.render.image_settings.color_mode = "RGB"
 s.render.use_file_extension = True
 os.makedirs(outdir, exist_ok=True)
 t0 = time.time()
-frames = job["frames"][start::step] if "frames" in job else list(range(start, end + 1, step))
-for f in frames:
+ALL = list(job["frames"]) if "frames" in job else list(range(int(job["start"]), int(job["end"]) + 1))
+mine = job["frames"][start::step] if "frames" in job else list(range(start, end + 1, step))
+
+def render(f):
     s.frame_set(f)
     s.render.filepath = os.path.join(outdir, f"{f:05d}.png")
     tf = time.time()
     bpy.ops.render.render(write_still=True)
-    print(f"CUBEY frame {f} {time.time() - tf:.1f}s", flush=True)
-n = len(frames)
-print(f"CUBEY chunk {start}-{end}: {n} frames in {time.time() - t0:.0f}s ({(time.time() - t0) / n:.1f}s/frame)", flush=True)
+    dt = time.time() - tf
+    print(f"CUBEY frame {f} {dt:.1f}s", flush=True)
+    return dt
+
+Q = os.environ.get("CUBEY_QUEUE")
+done_n = 0
+if not Q:  # old mode: fixed frames per runner
+    for f in mine: render(f); done_n += 1
+else:
+    # Shared queue on a git branch: c/<frame>_<time> = claimed, d/<frame> = done.
+    # Each runner takes its own frames first, then steals whatever is left (and
+    # frames stuck on a runner that died), so nobody sits idle while others work.
+    import subprocess, random
+    REF, RREF = f"refs/heads/{Q}", f"refs/remotes/origin/{Q}"
+    IDX = dict(os.environ, GIT_INDEX_FILE="/tmp/cubey_queue_idx")
+    def git(*a, env=None, inp=""):
+        return subprocess.run(["git", *a], capture_output=True, text=True, input=inp, env=env)
+    EMPTY = git("hash-object", "-w", "--stdin").stdout.strip()
+    def state():
+        git("fetch", "-q", "--no-tags", "origin", f"+{REF}:{RREF}")
+        tip = git("rev-parse", RREF).stdout.strip()
+        claimed, done = {}, set()
+        for p in git("ls-tree", "-r", "--name-only", tip).stdout.split():
+            d, n = p.split("/", 1)
+            if d == "d": done.add(int(n))
+            elif d == "c":
+                f, t = n.split("_"); claimed[int(f)] = max(claimed.get(int(f), 0), int(t))
+        return tip, claimed, done
+    def push(tip, paths):
+        git("read-tree", tip, env=IDX)
+        for p in paths: git("update-index", "--add", "--cacheinfo", f"100644,{EMPTY},{p}", env=IDX)
+        tree = git("write-tree", env=IDX).stdout.strip()
+        c = git("commit-tree", tree, "-p", tip, "-m", "q").stdout.strip()
+        return git("push", "-q", "origin", f"{c}:{REF}").returncode == 0
+    times, pending = [], []
+    while True:
+        f = None
+        for attempt in range(40):
+            tip, claimed, done = state()
+            now = int(time.time())
+            avg = sum(times) / len(times) if times else 60
+            free = [x for x in mine if x not in claimed] or [x for x in ALL if x not in claimed]
+            if free:
+                f = free[0] if free[0] in mine else random.choice(free)
+            else:
+                stale = [x for x, t in claimed.items() if x not in done and now - t > max(300, 4 * avg)]
+                f = random.choice(stale) if stale else None
+            if f is None: break
+            if push(tip, [f"c/{f:05d}_{now}"] + pending):
+                pending = []; break
+            f = None; time.sleep(random.uniform(0.5, 2.5))
+        if f is None: break
+        times.append(render(f)); done_n += 1
+        pending.append(f"d/{f:05d}")
+    for attempt in range(20):
+        if not pending: break
+        tip, _, _ = state()
+        if push(tip, pending): pending = []
+        else: time.sleep(random.uniform(0.5, 2.5))
+print(f"CUBEY runner {start}: {done_n} frames in {time.time() - t0:.0f}s", flush=True)

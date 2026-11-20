@@ -3,7 +3,7 @@ Prints a short markdown summary for the run page."""
 import glob, json, os, subprocess, sys
 job = json.load(open(sys.argv[1])); frames, out = sys.argv[2], sys.argv[3]
 files = sorted(glob.glob(os.path.join(frames, "*.png")))
-want = int(job["end"]) - int(job["start"]) + 1
+want = len(job["frames"]) if "frames" in job else int(job["end"]) - int(job["start"]) + 1
 if len(files) != want:
     sys.exit(f"Expected {want} frames, got {len(files)}")
 ow, oh = job.get("output", [1080, 1920])
