@@ -29,6 +29,7 @@ jobs:
     outputs:
       job: ${{ steps.p.outputs.job }}
       matrix: ${{ steps.p.outputs.matrix }}
+      blender: ${{ steps.p.outputs.blender }}
     steps:
       - uses: actions/checkout@v5
         with: { fetch-depth: 2 }
@@ -41,11 +42,15 @@ jobs:
           [ -n "$JOB" ] && [ -f "jobs/$JOB.json" ] || { echo "No job file found"; exit 1; }
           echo "job=$JOB" >> "$GITHUB_OUTPUT"
           python3 tools/plan.py "jobs/$JOB.json" >> "$GITHUB_OUTPUT"
+          BV=$(python3 -c "import json;print(json.load(open('jobs/$JOB.json')).get('blender','5.2.4'))")
+          echo "blender=$BV" >> "$GITHUB_OUTPUT"
 
   render:
     needs: plan
     runs-on: ubuntu-latest
     timeout-minutes: 340
+    env:
+      BLENDER_VERSION: ${{ needs.plan.outputs.blender }}
     strategy:
       fail-fast: false
       max-parallel: 20
@@ -64,7 +69,8 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/blender
-          curl -fsSL "https://download.blender.org/release/Blender${BLENDER_SERIES}/blender-${BLENDER_VERSION}-linux-x64.tar.xz" \
+          SERIES=$(echo "$BLENDER_VERSION" | cut -d. -f1,2)
+          curl -fsSL "https://download.blender.org/release/Blender${SERIES}/blender-${BLENDER_VERSION}-linux-x64.tar.xz" \
             | tar -xJ -C ~/blender --strip-components=1
       - name: Libraries Blender needs
         run: sudo apt-get update -qq && sudo apt-get install -y -qq libxi6 libxkbcommon0 libxrender1 libxxf86vm1 libxfixes3 libsm6 libgl1 libegl1 >/dev/null
