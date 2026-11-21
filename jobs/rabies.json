@@ -1,0 +1,2 @@
+{ "blend": "scenes/rabies/rabies.blend", "start": 1, "end": 1123, "fps": 30,
+  "res": [720, 1280], "output": [1080, 1920], "samples": 24, "chunks": 20 }

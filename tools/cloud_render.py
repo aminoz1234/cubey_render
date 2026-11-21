@@ -64,12 +64,14 @@ else:
     def state():
         git("fetch", "-q", "--no-tags", "origin", f"+{REF}:{RREF}")
         tip = git("rev-parse", RREF).stdout.strip()
-        claimed, done = {}, set()
+        claimed, done, first, count = {}, set(), {}, {}
         for p in git("ls-tree", "-r", "--name-only", tip).stdout.split():
             d, n = p.split("/", 1)
             if d == "d": done.add(int(n))
             elif d == "c":
-                f, t = n.split("_"); claimed[int(f)] = max(claimed.get(int(f), 0), int(t))
+                f, t = n.split("_"); f, t = int(f), int(t)
+                claimed[f] = max(claimed.get(f, 0), t); first[f] = min(first.get(f, t), t); count[f] = count.get(f, 0) + 1
+        state.first, state.count = first, count
         return tip, claimed, done
     def push(tip, paths):
         git("read-tree", tip, env=IDX)
@@ -77,7 +79,7 @@ else:
         tree = git("write-tree", env=IDX).stdout.strip()
         c = git("commit-tree", tree, "-p", tip, "-m", "q").stdout.strip()
         return git("push", "-q", "origin", f"{c}:{REF}").returncode == 0
-    times, pending = [], []
+    times, pending, mine_done = [], [], set()
     while True:
         f = None
         for attempt in range(40):
@@ -88,15 +90,23 @@ else:
             if free:
                 f = free[0] if free[0] in mine else random.choice(free)
             else:
-                stale = [x for x, t in claimed.items() if x not in done and now - t > max(300, 4 * avg)]
-                f = random.choice(stale) if stale else None
+                # Nothing left to claim. Never sit idle while others still render: help with the
+                # frames still in progress (oldest first, at most 3 runners per frame). Whoever
+                # finishes first wins; dead runners' frames get picked up this way too.
+                busy = [x for x in claimed if x not in done and x not in mine_done and state.count.get(x, 1) < 3]
+                busy.sort(key=lambda x: (state.count.get(x, 1), state.first.get(x, now)))
+                f = busy[0] if busy else None
             if f is None: break
             if push(tip, [f"c/{f:05d}_{now}"] + pending):
                 pending = []; break
             f = None; time.sleep(random.uniform(0.5, 2.5))
         if f is None: break
-        times.append(render(f)); done_n += 1
+        times.append(render(f)); done_n += 1; mine_done.add(f)
         pending.append(f"d/{f:05d}")
+        for attempt in range(6):   # publish 'done' right away so nobody duplicates it
+            tip, _, _ = state()
+            if push(tip, pending): pending = []; break
+            time.sleep(random.uniform(0.3, 1.5))
     for attempt in range(20):
         if not pending: break
         tip, _, _ = state()
