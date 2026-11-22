@@ -1,2 +1,2 @@
 { "blend": "scenes/ch2/ch2.blend", "start": 1, "end": 2760, "fps": 30,
-  "res": [1280, 720], "output": [1920, 1080], "samples": 20, "chunks": 20 }
+  "res": [1280, 720], "output": [1920, 1080], "samples": 18, "chunks": 20 }

@@ -231,11 +231,20 @@ for n, _ in SH: wset(T0[n], WORLD.get(n, 1))
 ad = wn.animation_data
 for fc in ad.action.layers[0].strips[0].channelbag(ad.action_slot).fcurves:
     for kp in fc.keyframe_points: kp.interpolation = 'CONSTANT'
-for o, n in FOGS:
-    a, b = span(n)
-    o.hide_render = True; o.keyframe_insert('hide_render', frame=1)
-    o.hide_render = False; o.keyframe_insert('hide_render', frame=F(a))
-    o.hide_render = True; o.keyframe_insert('hide_render', frame=F(b))
+for o, n in FOGS: bpy.data.objects.remove(o, do_unlink=True)
+sc.view_layers[0].use_pass_mist = True
+world.mist_settings.start = 80; world.mist_settings.depth = 1400; world.mist_settings.falloff = 'QUADRATIC'
+try:
+    ng = sc.compositing_node_group
+    rl = [n_ for n_ in ng.nodes if n_.type == 'R_LAYERS'][0]; gl = [n_ for n_ in ng.nodes if n_.type == 'GLARE'][0]
+    mx = ng.nodes.new('ShaderNodeMix'); mx.data_type = 'RGBA'
+    mt = ng.nodes.new('ShaderNodeMath'); mt.operation = 'MULTIPLY'; mt.inputs[1].default_value = 0.3
+    ng.links.new(rl.outputs['Mist'], mt.inputs[0]); ng.links.new(mt.outputs[0], mx.inputs[0])
+    ng.links.new(rl.outputs['Image'], mx.inputs[6]); mx.inputs[7].default_value = (0.06, 0.055, 0.05, 1)
+    ng.links.new(mx.outputs[2], gl.inputs['Image']); print("MIST ON")
+except Exception as e: print("mist skipped:", e)
+sc.cycles.use_adaptive_sampling = True; sc.cycles.adaptive_threshold = 0.04
+sc.cycles.max_bounces = 4; sc.cycles.transmission_bounces = 4; sc.cycles.glossy_bounces = 2
 for c_ in bpy.data.cameras: c_.clip_start = 0.5; c_.clip_end = 1e5
 sc.frame_end = F(END_T) - 1
 print("SHOTS", {n: (F(T0[n]), F(T0[n] + d) - 1) for n, d in SH}, "END", sc.frame_end)

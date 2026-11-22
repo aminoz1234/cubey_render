@@ -111,12 +111,12 @@ cam(n, [(0, (X - 120, -130, 125), (X - 25, 0, 95)), (1, (X - 10, -120, 118), (X 
 # ================================================================ N4 stable with crates of Radithor
 n = "N4_stable"; X = SX(n); WORLD[n] = 1
 fl = box("StableFloor", (X, 0, -1), (400, 400, 1), M_HAY, 0.2)
-add_hair(fl, 40000, 5.0, 0, radius=0.08, normal=0.2, rand=1.0, seed=3)
+add_hair(fl, 12000, 5.0, 0, radius=0.08, normal=0.2, rand=1.0, seed=3)
 box("StableBack", (X, 150, 150), (300, 4, 150), M_PLANK, 0.3)
 for s in (-1, 1): box(f"Stall{s}", (X + s * 120, 60, 75), (4, 90, 75), M_PLANK, 0.5)
 for k in range(3): box(f"Beam{k}", (X - 150 + k * 150, 60, 280), (8, 120, 8), M_PLANK, 1)
 hb = bmesh.new(); blob(hb, (0, 0, 0), (70, 45, 35), 0, 30); hay = mesh_obj("HayPile", hb, [M_HAY], loc=(X - 60, 95, 0))
-add_hair(hay, 30000, 9.0, 0, radius=0.1, normal=0.6, rand=1.0, seed=5)
+add_hair(hay, 9000, 9.0, 0, radius=0.1, normal=0.6, rand=1.0, seed=5)
 for i, (dx, dz, rz) in enumerate([(20, 11, 0.05), (66, 11, -0.08), (42, 33, 0.12)]):
     box(f"SCrate{i}", (X + dx, 30, dz), (22, 16, 11), M_PLANK, 0.6).rotation_euler.z = rz
     pc = plane(f"SCrateL{i}", 40, 15, M_CRATEL, (X + dx, 13.6, dz), (0, 0, 0)); pc.parent = None
