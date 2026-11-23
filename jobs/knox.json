@@ -1,0 +1,2 @@
+{ "blend": "scenes/knox/knox.blend", "start": 1, "end": 720, "fps": 30,
+  "res": [1280, 720], "output": [1920, 1080], "samples": 32, "chunks": 20 }
