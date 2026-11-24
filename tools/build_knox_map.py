@@ -17,15 +17,15 @@ def emis(name, col, s):
     return mat(name, col, emit=s, rough=0.6)
 
 
-M_TN = mat("m_tn", (0.09, 0.15, 0.28), rough=0.7)
-M_OTHER = mat("m_other", (0.008, 0.012, 0.024), rough=0.9)
+M_TN = mat("m_tn", (0.1, 0.2, 0.42), rough=0.7)
+M_OTHER = mat("m_other", (0.012, 0.016, 0.026), rough=0.9)
 M_URBAN = emis("m_urban", (0.12, 0.22, 0.45), 0.6)
-M_WATER = emis("m_water", (0.05, 0.25, 0.95), 1.6)
-M_ROAD = emis("m_road", (0.75, 0.88, 1.0), 5.0)
-M_ROAD2 = emis("m_road2", (0.25, 0.4, 0.75), 2.0)
-M_BORDER = emis("m_border", (0.4, 0.6, 1.0), 3.0)
+M_WATER = emis("m_water", (0.05, 0.75, 1.0), 3.0)
+M_ROAD = emis("m_road", (1.0, 0.55, 0.1), 5.0)
+M_ROAD2 = emis("m_road2", (0.18, 0.22, 0.3), 1.0)
+M_BORDER = emis("m_border", (0.85, 0.92, 1.0), 4.0)
 M_TEXT = emis("m_text", (0.75, 0.88, 1.0), 4.0)
-M_PIN = emis("m_pin", (0.85, 0.93, 1.0), 16.0)
+M_PIN = emis("m_pin", (1.0, 0.06, 0.03), 5.0)
 
 
 def fill(name, rings, z, m, thick=0.0):
@@ -72,25 +72,22 @@ bpy.data.objects["tn"].location.z = 0.25
 fill("others", other, 0.0, M_OTHER)
 b_tn = polylines("tn_border", tn, 0.26, M_BORDER, 0.06, cyclic=True)
 b_ot = polylines("state_borders", other, 0.01, M_ROAD2, 0.03, cyclic=True)
-fill("urban", D["urban"], 0.262, M_URBAN)
-fill("lakes", D["lakes"], 0.263, M_WATER)
-riv = polylines("rivers", [r["pts"] for r in D["rivers"]], 0.265, M_WATER, 0.05)
-maj = polylines("roads_major", [r["pts"] for r in D["roads"] if r["t"] != "Secondary Highway"], 0.27, M_ROAD, 0.05)
-sec = polylines("roads_sec", [r["pts"] for r in D["roads"] if r["t"] == "Secondary Highway"], 0.268, M_ROAD2, 0.03)
+riv = polylines("rivers", [r["pts"] for r in D["rivers"] if r["name"] in ("Tennessee", "Mississippi", "Cumberland")], 0.265, M_WATER, 0.05)
+maj = polylines("roads_major", [r["pts"] for r in D["roads"] if r["t"] == "Major Highway"], 0.27, M_ROAD, 0.05)
 # line widths shrink as the camera dives in; roads draw on at the start
-for ob, d0, d1 in ((riv, 0.05, 0.005), (maj, 0.1, 0.007), (sec, 0.05, 0.004), (b_tn, 0.14, 0.014), (b_ot, 0.05, 0.008)):
+for ob, d0, d1 in ((riv, 0.09, 0.012), (maj, 0.1, 0.01), (b_tn, 0.14, 0.02), (b_ot, 0.05, 0.01)):
     for f, d in ((1, d0), (60, d0), (200, d1)):
         ob.data.bevel_depth = d; ob.data.keyframe_insert("bevel_depth", frame=f)
-for ob in (maj, sec, riv):
+for ob in (maj, riv):
     ob.data.bevel_factor_end = 0.0; ob.data.keyframe_insert("bevel_factor_end", frame=5)
     ob.data.bevel_factor_end = 1.0; ob.data.keyframe_insert("bevel_factor_end", frame=70)
 # cities
 for c in D["cities"]:
     x, y = c["p"]
-    if c["name"] == "Knoxville":
+    if c["name"] not in ("Nashville", "Memphis", "Chattanooga"):
         continue
     bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=0.25, depth=0.05, location=(x, y, 0.29)); bpy.context.active_object.data.materials.append(M_TEXT)
-    t = text(c["name"].upper(), (x, y - 0.9, 0.3), 1.1)
+    t = text(c["name"].upper(), (x, y - 1.6, 0.3), 2.0)
     for f, s in ((1, 1.0), (110, 1.0), (140, 0.0)):
         t.scale = (s,) * 3; t.keyframe_insert("scale", frame=f)
 t = text("TENNESSEE", (-28, -4.5, 0.3), 3.2)
