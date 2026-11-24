@@ -94,15 +94,7 @@ def mannequin(name, pose, m, loc, rot_z=0.0, scale=1.0, helmet=False, rifle=Fals
     if pose == "sit":
         rig.location = (loc[0], loc[1], loc[2] - 0.45 * scale)
     if rifle:
-        import bmesh
-        bm = bmesh.new(); bmesh.ops.create_cube(bm, size=1.0)
-        for v in bm.verts:
-            v.co = Vector((v.co.x * 0.05, v.co.y * 0.85, v.co.z * 0.09))
-        me = bpy.data.meshes.new(name + "_rifle"); bm.to_mesh(me); bm.free(); me.materials.append(m)
-        r = bpy.data.objects.new(name + "_rifle", me); bpy.context.scene.collection.objects.link(r)
-        hand = rig.matrix_world @ pb["wrist.R"].head if "wrist.R" in pb else rig.matrix_world @ pb["lowerarm01.R"].tail
-        r.parent = rig; r.matrix_parent_inverse = rig.matrix_world.inverted()
-        r.matrix_world = Matrix.Translation(hand + rig.matrix_world.to_3x3() @ Vector((0.18, -0.15, 0.05))) @ rig.matrix_world.to_3x3().to_4x4()
+        rifle_hold(rig, m)
     if helmet:
         import bmesh
         bm = bmesh.new(); bmesh.ops.create_uvsphere(bm, u_segments=24, v_segments=12, radius=0.125)
@@ -118,7 +110,7 @@ def mannequin(name, pose, m, loc, rot_z=0.0, scale=1.0, helmet=False, rifle=Fals
     return rig, body
 
 
-def walk(rig, f0, f1, period=18, swing=0.42, bob=0.03):
+def walk(rig, f0, f1, period=18, swing=0.42, bob=0.03, key_z=True):
     """Key a simple walk cycle (legs + body bob) on a posed mannequin between frames f0 and f1."""
     sc = bpy.context.scene; pb = rig.pose.bones; base_z = rig.location.z
     legs = ("upperleg01.L", "lowerleg01.L", "upperleg01.R", "lowerleg01.R")
@@ -137,7 +129,117 @@ def walk(rig, f0, f1, period=18, swing=0.42, bob=0.03):
             bpy.context.view_layer.update()
         for n in legs:
             pb[n].keyframe_insert("rotation_quaternion", frame=f)
-        rig.location.z = base_z + bob * abs(math.sin(ph)); rig.keyframe_insert("location", index=2, frame=f)
+        if key_z:
+            rig.location.z = base_z + bob * abs(math.sin(ph)); rig.keyframe_insert("location", index=2, frame=f)
     for n in legs:   # stand still after the walk
         pb[n].rotation_quaternion = (1, 0, 0, 0); pb[n].keyframe_insert("rotation_quaternion", frame=f1 + 6)
-    rig.location.z = base_z; rig.keyframe_insert("location", index=2, frame=f1 + 6)
+    if key_z:
+        rig.location.z = base_z; rig.keyframe_insert("location", index=2, frame=f1 + 6)
+
+
+# ---------------------------------------------------------------- props held in the hands
+def _parts_mesh(name, parts, m):
+    """parts: [(kind, centre, half_or_(r, depth), axis)] in object space -> one mesh."""
+    import bmesh
+    bm = bmesh.new()
+    for kind, c, dims in parts:
+        if kind == "box":
+            g = bmesh.ops.create_cube(bm, size=1.0)
+            for v in g["verts"]:
+                v.co = Vector((v.co.x * dims[0] * 2 + c[0], v.co.y * dims[1] * 2 + c[1], v.co.z * dims[2] * 2 + c[2]))
+        else:   # cylinder along y
+            g = bmesh.ops.create_cone(bm, cap_ends=True, segments=10, radius1=dims[0], radius2=dims[0], depth=dims[1])
+            for v in g["verts"]:
+                v.co = Vector((v.co.x + c[0], v.co.z + c[1], v.co.y + c[2]))
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free(); me.materials.append(m)
+    o = bpy.data.objects.new(name, me); bpy.context.scene.collection.objects.link(o)
+    o.modifiers.new("bev", "BEVEL").width = 0.004
+    return o
+
+
+def _empty(name, parent, loc):
+    e = bpy.data.objects.new(name, None); bpy.context.scene.collection.objects.link(e)
+    e.parent = parent; e.location = loc; e.empty_display_size = 0.03
+    return e
+
+
+def rifle_hold(rig, m):
+    """A carbine at low ready, stock in the right shoulder, both hands locked on it with IK."""
+    name = rig.name
+    # rifle object space: butt at origin, muzzle toward -y
+    parts = [("box", (0, -0.07, -0.01), (0.022, 0.07, 0.05)),          # stock
+             ("box", (0, -0.3, 0.0), (0.024, 0.16, 0.04)),             # receiver
+             ("box", (0, -0.3, -0.085), (0.016, 0.022, 0.06)),         # magazine
+             ("box", (0, -0.21, -0.075), (0.014, 0.018, 0.05)),        # pistol grip
+             ("box", (0, -0.56, 0.0), (0.026, 0.11, 0.032)),           # handguard
+             ("cyl", (0, -0.78, 0.0), (0.009, 0.2)),                   # barrel
+             ("box", (0, -0.3, 0.055), (0.012, 0.05, 0.016))]          # optic
+    r = _parts_mesh(name + "_rifle", parts, m)
+    d = Vector((0.08, -1.0, -0.42)).normalized()                       # low ready: muzzle forward and down
+    rot = Vector((0, -1, 0)).rotation_difference(d).to_matrix().to_4x4()
+    r.parent = rig; r.matrix_parent_inverse = Matrix.Identity(4)
+    r.matrix_basis = Matrix.Translation(Vector((-0.11, -0.06, 1.33))) @ rot
+    tgt_r = _empty(name + "_gripR", r, (0.0, -0.2, -0.07)); tgt_l = _empty(name + "_gripL", r, (0.0, -0.55, -0.035))
+    pole_r = _empty(name + "_poleR", rig, (-0.55, 0.25, 0.95)); pole_l = _empty(name + "_poleL", rig, (0.45, -0.25, 0.85))
+    for side, tgt, pole in (("R", tgt_r, pole_r), ("L", tgt_l, pole_l)):
+        pb = rig.pose.bones["lowerarm02." + side]
+        c = pb.constraints.new("IK"); c.target = tgt; c.chain_count = 4; c.pole_target = pole; c.pole_angle = math.radians(-90)
+    return r
+
+
+def pistol_in_hand(rig, m):
+    pb = rig.pose.bones; bpy.context.view_layer.update()
+    w = pb["wrist.R"]; fwd = (w.tail - pb["lowerarm02.R"].head).normalized()
+    parts = [("box", (0, -0.06, 0.0), (0.016, 0.09, 0.026)), ("box", (0, -0.0, -0.055), (0.014, 0.022, 0.05))]
+    g = _parts_mesh(rig.name + "_pistol", parts, m)
+    g.parent = rig; g.matrix_parent_inverse = Matrix.Identity(4)
+    g.matrix_basis = Matrix.Translation(w.tail + fwd * 0.03) @ Vector((0, -1, 0)).rotation_difference(fwd).to_matrix().to_4x4()
+    return g
+
+
+def knife_in_hand(rig, m):
+    pb = rig.pose.bones; bpy.context.view_layer.update()
+    w = pb["wrist.R"]; fwd = (w.tail - pb["lowerarm02.R"].head).normalized()
+    parts = [("box", (0, -0.05, 0.0), (0.016, 0.06, 0.02)), ("box", (0, -0.25, 0.0), (0.007, 0.15, 0.032))]
+    k = _parts_mesh(rig.name + "_knife", parts, m)
+    k.parent = rig; k.matrix_parent_inverse = Matrix.Identity(4)
+    k.matrix_basis = Matrix.Translation(w.tail) @ Vector((0, -1, 0)).rotation_difference(fwd).to_matrix().to_4x4()
+    return k
+
+
+# ---------------------------------------------------------------- moving along a route (upright, heading only)
+def route_points(curve_obj, step=0.04):
+    dg = bpy.context.evaluated_depsgraph_get(); ev = curve_obj.evaluated_get(dg); me = ev.to_mesh()
+    pts = [curve_obj.matrix_world @ v.co for v in me.vertices]; ev.to_mesh_clear()
+    L = [0.0]
+    for a, b in zip(pts, pts[1:]):
+        L.append(L[-1] + (b - a).length)
+    return pts, L
+
+
+def _at(pts, L, s):
+    s = max(0.0, min(L[-1], s))
+    for i in range(1, len(L)):
+        if L[i] >= s:
+            t = (s - L[i - 1]) / max(1e-9, L[i] - L[i - 1]); return pts[i - 1].lerp(pts[i], t)
+    return pts[-1]
+
+
+def move_along(rig, curve_obj, keys, bob=0.025, period=18):
+    """keys: [(frame, fraction 0..1)] - keyed every 2 frames, eased between keys; body upright, turns toward travel."""
+    pts, L = route_points(curve_obj); last = None
+    fr = list(range(keys[0][0], keys[-1][0] + 1, 2))
+    for f in fr:
+        for (fa, sa), (fb, sb) in zip(keys, keys[1:]):
+            if fa <= f <= fb:
+                t = (f - fa) / max(1, fb - fa); t = t * t * (3 - 2 * t); frac = sa + (sb - sa) * t; moving = sb != sa; break
+        s = frac * L[-1]; p = _at(pts, L, s)
+        a = _at(pts, L, s - 0.2); b = _at(pts, L, s + 0.2); dvec = (b - a); dvec.z = 0
+        ang = math.atan2(dvec.x, -dvec.y) if dvec.length > 1e-4 else (last if last is not None else 0.0)
+        if last is not None:
+            while ang - last > math.pi: ang -= 2 * math.pi
+            while ang - last < -math.pi: ang += 2 * math.pi
+        last = ang
+        ph = (f - keys[0][0]) / period * 2 * math.pi
+        rig.location = (p.x, p.y, p.z + (bob * abs(math.sin(ph)) if moving else 0.0)); rig.keyframe_insert("location", frame=f)
+        rig.rotation_euler = (0, 0, ang); rig.keyframe_insert("rotation_euler", frame=f)

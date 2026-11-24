@@ -225,7 +225,7 @@ def apt_set():
     wall_run("apt_e_close", (9.6, -0.1), (9.6, 0.3), [])
     # ---- doors ----
     door("apt_door_side", (6.5, 2.6), 0.82, 70, 0.0, swing=1)
-    P["bed_door_piv"] = door("apt_door_bed", (9.6, 1.55), 0.88, 100, math.pi / 2, swing=-1)
+    P["bed_door_piv"] = door("apt_door_bed", (9.6, 1.55), 0.88, 155, math.pi / 2, swing=-1)
     for i in range(4):   # clothes hanging on the back of the bedroom door
         c = blob(f"apt_doorclothes{i}", (0, 0, 0), (0.18, 0.06, 1.2), M["fabric"], seed=i, flat=0.45)
         c.parent = P["bed_door_piv"]; c.location = (0.25 + i * 0.13, 0.08, 1.45); c.scale = (0.12, 0.05, 0.28)
