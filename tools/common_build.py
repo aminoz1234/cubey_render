@@ -145,3 +145,30 @@ def soft_box(name, center, half, m, levels=3, cast=0.35, wrinkle=0.006, wscale=0
     return ob
 
 
+
+
+def box(name, center, half, m, bevel=0.0):
+    bm = bmesh.new(); bmesh.ops.create_cube(bm, size=1.0)
+    for v in bm.verts:
+        v.co = Vector((v.co.x * 2 * half[0], v.co.y * 2 * half[1], v.co.z * 2 * half[2]))
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free(); me.materials.append(m)
+    ob = link(bpy.data.objects.new(name, me)); ob.location = center
+    if bevel:
+        b = ob.modifiers.new("bev", "BEVEL"); b.width = bevel; b.segments = 2
+    return ob
+
+
+def plane(name, center, size, m, rot=(0, 0, 0)):
+    bm = bmesh.new(); bmesh.ops.create_grid(bm, x_segments=1, y_segments=1, size=0.5)
+    for v in bm.verts:
+        v.co = Vector((v.co.x * size[0], v.co.y * size[1], 0))
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    me.uv_layers.new(name="UVMap")
+    for loop in me.loops:
+        co = me.vertices[loop.vertex_index].co
+        me.uv_layers[0].data[loop.index].uv = (0.5 + co.x / size[0], 0.5 + co.y / size[1])
+    me.materials.append(m)
+    ob = link(bpy.data.objects.new(name, me)); ob.location = center; ob.rotation_euler = rot
+    return ob
+
+
