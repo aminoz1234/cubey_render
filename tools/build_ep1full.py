@@ -36,9 +36,11 @@ def soda_can(name):
     return o
 def juice_glass(name):
     g = obj_from(bpy.ops.mesh.primitive_cylinder_add, name, radius=0.07, depth=0.21, vertices=48, location=(0, 0, 0)); smooth(g)
-    g.data.materials.append(mmat("glass_m", (0.95, 0.98, 1.0), 0.05, alpha=0.18)); sol = g.modifiers.new("sol", "SOLIDIFY"); sol.thickness = 0.006
+    g.data.materials.append(mmat("glass_m", (0.02, 0.02, 0.025), 0.05, alpha=0.1)); sol = g.modifiers.new("sol", "SOLIDIFY"); sol.thickness = 0.006
+    import bmesh; bm = bmesh.new(); bm.from_mesh(g.data); bmesh.ops.delete(bm, geom=[f for f in bm.faces if len(f.verts) > 4], context="FACES"); bm.to_mesh(g.data); bm.free()
+    g.data.materials[0].node_tree.nodes["Principled BSDF"].inputs["Specular IOR Level"].default_value = 0.6
     j = obj_from(bpy.ops.mesh.primitive_cylinder_add, name + "_juice", radius=0.064, depth=0.17, vertices=48, location=(0, 0, -0.016)); smooth(j)
-    j.data.materials.append(mmat("juice_m", (1.0, 0.33, 0.0), 0.3, emit=1.2)); j.parent = g
+    j.data.materials.append(mmat("juice_m", (0.9, 0.27, 0.0), 0.2)); j.parent = g
     return g
 def smoothie():
     b = obj_from(bpy.ops.mesh.primitive_cylinder_add, "smoothie", radius=0.058, depth=0.24, vertices=40, location=(0, 0, 0)); smooth(b); bevel(b, 0.02)
@@ -144,15 +146,16 @@ exec(open(os.path.join(HERE, "ep1_keys.py")).read())
 # ------------------------------------------------------------ phone screen corners per frame (for compositing the real Cubey screens locally)
 from bpy_extras.object_utils import world_to_camera_view
 corners = {}
-me = scr_g.data
 for f in range(1, NFR + 1):
     S.frame_set(f)
-    if scr_g.matrix_world.to_scale().length < 1e-3: continue
-    mw = scr_g.matrix_world; pts = []
-    for v in me.vertices:
-        p = world_to_camera_view(S, cam, mw @ v.co); pts.append((round(p.x * 1080, 2), round((1 - p.y) * 1920, 2), round(p.z, 3)))
-    n = (mw.to_3x3() @ Vector((0, -1, 0))).normalized(); facing = n.dot((cam.matrix_world.translation - mw.translation).normalized())
-    if facing > 0.1 and all(z > 0 for *_, z in pts): corners[f] = [pts[0][:2], pts[1][:2], pts[2][:2], pts[3][:2]]
+    for scr in SCREENS:
+        par = scr.parent
+        if par.hide_render or scr.hide_render or scr.matrix_world.to_scale().length < 1e-3: continue
+        mw = scr.matrix_world; pts = []
+        for v in scr.data.vertices:
+            p = world_to_camera_view(S, cam, mw @ v.co); pts.append((round(p.x * 1080, 2), round((1 - p.y) * 1920, 2), round(p.z, 3)))
+        n = (mw.to_3x3() @ Vector((0, -1, 0))).normalized(); facing = n.dot((cam.matrix_world.translation - mw.translation).normalized())
+        if facing > 0.1 and all(z > 0 for *_, z in pts): corners[f] = [pts[0][:2], pts[1][:2], pts[2][:2], pts[3][:2]]; break
 json.dump(corners, open(OUT.replace(".blend", "_phone_corners.json"), "w"))
 print("phone frames", len(corners))
 

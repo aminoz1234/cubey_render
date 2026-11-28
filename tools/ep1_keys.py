@@ -147,7 +147,7 @@ CK = [(0.0, (-2.9, -4.6, 1.85), (-2.2, -1.9, 1.55)), (4.0, (-2.6, -4.9, 1.9), (-
       (13.8, (-0.4, -3.6, 1.6), (-1.05, -1.86, 1.25)), (18.0, (-0.35, -3.5, 1.6), (-1.0, -1.86, 1.28)),
       (19.0, (-1.4, -4.4, 1.8), (-1.5, -2.2, 1.8)), (21.0, (1.2, -4.6, 1.85), (1.75, -1.1, 1.7)), (26.6, (1.5, -4.3, 1.8), (1.8, -1.1, 1.7)),
       (28.0, (-0.7, -3.7, 1.6), (-0.3, -1.72, 1.3)), (31.0, (0.4, -4.1, 1.7), (0.5, -1.5, 1.35)), (33.6, (0.5, -4.2, 1.7), (0.6, -1.4, 1.4)),
-      (34.4, (0.6, -4.6, 1.85), (1.4, -1.1, 1.6)), (35.6, (2.05, -2.7, 1.6), (2.1, -1.1, 1.55)), (36.3, (2.26, -1.62, 1.43), (2.27, -1.1, 1.41)), (37.5, (2.27, -1.58, 1.43), (2.27, -1.1, 1.41)),
+      (34.4, (0.6, -4.6, 1.85), (1.4, -1.1, 1.6)), (34.95, (1.2, -3.2, 1.8), (1.0, -1.4, 1.5)),
       (38.6, (-1.5, -4.7, 1.85), (-1.4, -1.8, 1.5)), (41.3, (-1.8, -4.4, 1.8), (-1.7, -1.8, 1.55))]
 for t, cp, tp in CK:
     key(cam, "location", Vector(cp), F(t)); key(tgt, "location", Vector(tp), F(t))
@@ -156,3 +156,40 @@ for f0 in (F(18.1),):
     for i in range(12):
         f = f0 + i; S.frame_set(f); bpy.context.view_layer.update(); p = cam.location.copy(); a_ = 0.03 * (1 - i / 12)
         key(cam, "location", p + Vector((math.sin(i * 2.7) * a_, 0, math.cos(i * 3.3) * a_)), f)
+
+# ---------------- POV: Grandpa's own eyes, his hand holding the phone up at the juice (35.3 - 37.6)
+T0, T1 = 35.3, 37.6
+EYE = Vector((1.85, -1.18, 1.9)); LOOK = (Vector((-1.0, -1.86, 1.05)) - EYE).normalized()
+def pov_key(t, off=Vector((0, 0, 0)), look_off=Vector((0, 0, 0))):
+    key(cam, "location", EYE + off, F(t)); key(tgt, "location", EYE + off + (LOOK + look_off).normalized() * 0.30, F(t))
+pov_key(T0); 
+import random; rnd = random.Random(7)
+t = T0 + 0.13
+while t < T1:
+    pov_key(t, Vector((rnd.uniform(-1, 1) * 0.006, 0, rnd.uniform(-1, 1) * 0.005)), Vector((rnd.uniform(-1, 1) * 0.01, 0, rnd.uniform(-1, 1) * 0.008))); t += 0.13
+pov_key(T1, Vector((0.004, 0, -0.01)))
+# hide Grandpa while we are inside his head
+def tree(o):
+    yield o
+    for c in o.children: yield from tree(c)
+gobjs = set(tree(gpa["arm"])) | set(tree(ph_g)) | {o for o in bpy.data.objects if o.name.startswith("grandpa")}
+def vis(o, on_frames):
+    for f, h in on_frames:
+        o.hide_render = h; o.keyframe_insert("hide_render", frame=f)
+for o in gobjs: vis(o, [(1, False), (F(T0), True), (F(T1), False)])
+# the POV hand: forearm from the bottom right, open palm behind the phone, phone screen to the eye
+pv, scr_pov = phone("phone_pov")
+pv.parent = cam; pv.location = (0.0, -0.035, -0.30); pv.rotation_euler = (R(-90 + 6), R(-4), 0)
+ART = os.path.join(ARTD, "grandpa")
+def card(name, img, w, h, u0, u1, v0, v1, loc, rot):
+    me = bpy.data.meshes.new(name); me.from_pydata([(-w / 2, -h / 2, 0), (w / 2, -h / 2, 0), (w / 2, h / 2, 0), (-w / 2, h / 2, 0)], [], [(0, 1, 2, 3)]); me.update()
+    uv = me.uv_layers.new(); [setattr(uv.data[i], "uv", c) for i, c in enumerate([(u0, v0), (u1, v0), (u1, v1), (u0, v1)])]
+    o = bpy.data.objects.new(name, me); S.collection.objects.link(o); o.parent = cam; o.location = loc; o.rotation_euler = (0, 0, R(rot))
+    m = bpy.data.materials.new(name + "_m"); m.use_nodes = True; nt = m.node_tree; b = nt.nodes["Principled BSDF"]
+    tx = nt.nodes.new("ShaderNodeTexImage"); tx.image = bpy.data.images.load(os.path.join(ART, img)); tx.extension = "CLIP"
+    nt.links.new(tx.outputs["Color"], b.inputs["Base Color"]); nt.links.new(tx.outputs["Alpha"], b.inputs["Alpha"]); b.inputs["Roughness"].default_value = 0.8; nt.links.new(tx.outputs["Color"], b.inputs["Emission Color"]); b.inputs["Emission Strength"].default_value = 0.55
+    o.data.materials.append(m); o.visible_shadow = False; return o
+hand_pov = card("pov_hand", "hands.png", 0.34, 0.34, 1 / 6, 0.0, 1.0, 0.0, (0.004, -0.02, -0.312), 4)     # open hand turned upside down: fingers up behind the phone
+arm_pov = card("pov_arm", "arm.png", 0.085, 0.36, 0, 1, 0.0, 0.62, (0.075, -0.26, -0.318), 24)
+for o in (pv, scr_pov, hand_pov, arm_pov): vis(o, [(1, True), (F(T0), False), (F(T1), True)])
+SCREENS = [scr_g, scr_pov]
