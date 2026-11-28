@@ -14,6 +14,10 @@ SKEL = {
     "ray": dict(hip=0.62, sh=1.12, neck=1.17, shW=0.21, hipW=0.09, up=0.25, fo=0.235, th=0.31, sn=0.29, hand=1.08, ank=0.05, headR=0.39),
     "dale": dict(hip=0.62, sh=1.12, neck=1.17, shW=0.21, hipW=0.09, up=0.25, fo=0.235, th=0.31, sn=0.29, hand=1.08, ank=0.05, headR=0.39),
     "marcus": dict(hip=0.66, sh=1.2, neck=1.25, shW=0.205, hipW=0.075, up=0.27, fo=0.25, th=0.33, sn=0.31, hand=1.08, ank=0.05, headR=0.34),
+    "kayla": dict(hip=0.62, sh=1.1, neck=1.15, shW=0.19, hipW=0.09, up=0.25, fo=0.235, th=0.31, sn=0.29, hand=1.0, ank=0.05, headR=0.36),
+    "tasha": dict(hip=0.62, sh=1.1, neck=1.15, shW=0.155, hipW=0.068, up=0.25, fo=0.235, th=0.31, sn=0.29, hand=0.98, ank=0.05, headR=0.35),
+    "devin": dict(hip=0.64, sh=1.15, neck=1.2, shW=0.18, hipW=0.072, up=0.26, fo=0.245, th=0.32, sn=0.3, hand=1.04, ank=0.05, headR=0.34),
+    "josh": dict(hip=0.64, sh=1.15, neck=1.2, shW=0.17, hipW=0.07, up=0.27, fo=0.25, th=0.33, sn=0.31, hand=1.0, ank=0.05, headR=0.34),
     "grandpa": dict(hip=0.62, sh=1.1, neck=1.15, shW=0.17, hipW=0.075, up=0.25, fo=0.235, th=0.31, sn=0.29, hand=1.0, ank=0.05, headR=0.35),
 }
 HANDS = ["open", "fist", "point", "gripBack", "gripFront", "wave"]
