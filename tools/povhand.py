@@ -8,6 +8,8 @@ OUT = sys.argv[1]; PW = float(sys.argv[2]) if len(sys.argv) > 2 else 0.093
 PX = 4000; X0, X1, Z0, Z1 = -0.09, 0.13, -0.21, 0.05
 Wpx, Hpx = int((X1 - X0) * PX), int((Z1 - Z0) * PX)
 SKIN, SKIN_D, INK, CREASE = (247, 228, 200), (232, 204, 170), (43, 27, 32), (178, 132, 100)
+if len(sys.argv) > 4:   # custom skin: python3 povhand.py OUT width "#rrggbb" "#rrggbb"
+    hx = lambda h: tuple(int(h[i:i + 2], 16) for i in (1, 3, 5)); SKIN, SKIN_D = hx(sys.argv[3]), hx(sys.argv[4]); CREASE = tuple(max(0, c - 45) for c in SKIN_D)
 OL = 11
 def P(x, z): return ((x - X0) * PX, (Z1 - z) * PX)
 def capsule(d, a, b, w, fill):

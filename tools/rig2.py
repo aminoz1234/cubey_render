@@ -9,6 +9,8 @@ U = 1000.0
 SKEL = {
     "mom": dict(hip=0.62, sh=1.1, neck=1.15, shW=0.165, hipW=0.07, up=0.25, fo=0.235, th=0.31, sn=0.29, hand=1.0, ank=0.05, headR=0.36),
     "son": dict(hip=0.5, sh=0.9, neck=0.95, shW=0.14, hipW=0.07, up=0.21, fo=0.195, th=0.25, sn=0.235, hand=0.9, ank=0.045, headR=0.34),
+    "nora": dict(hip=0.62, sh=1.1, neck=1.15, shW=0.16, hipW=0.07, up=0.25, fo=0.235, th=0.31, sn=0.29, hand=1.0, ank=0.05, headR=0.36),
+    "jess": dict(hip=0.62, sh=1.1, neck=1.15, shW=0.165, hipW=0.07, up=0.25, fo=0.235, th=0.31, sn=0.29, hand=1.0, ank=0.05, headR=0.36),
     "grandpa": dict(hip=0.62, sh=1.1, neck=1.15, shW=0.17, hipW=0.075, up=0.25, fo=0.235, th=0.31, sn=0.29, hand=1.0, ank=0.05, headR=0.35),
 }
 HANDS = ["open", "fist", "point", "gripBack", "gripFront", "wave"]
