@@ -52,7 +52,7 @@ def render(f):
     print(f"CUBEY frame {f} {dt:.1f}s", flush=True)
     return dt
 
-Q = os.environ.get("CUBEY_QUEUE")
+Q = None if job.get("no_queue") else os.environ.get("CUBEY_QUEUE")
 done_n = 0
 if not Q:  # old mode: fixed frames per runner
     for f in mine: render(f); done_n += 1
