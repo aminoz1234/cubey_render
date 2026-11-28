@@ -38,8 +38,13 @@ t0 = time.time()
 ALL = list(job["frames"]) if "frames" in job else list(range(int(job["start"]), int(job["end"]) + 1))
 mine = job["frames"][start::step] if "frames" in job else list(range(start, end + 1, step))
 
+BORD = json.load(open(job["borders"])) if "borders" in job else None   # {frame: [x0, y0, x1, y1]} in 0..1, y up: patch renders
 def render(f):
     s.frame_set(f)
+    if BORD is not None:
+        b = BORD.get(str(f), [0, 0, 0.01, 0.01])
+        s.render.use_border = True; s.render.use_crop_to_border = False
+        s.render.border_min_x, s.render.border_min_y, s.render.border_max_x, s.render.border_max_y = b
     s.render.filepath = os.path.join(outdir, f"{f:05d}.png")
     tf = time.time()
     bpy.ops.render.render(write_still=True)
