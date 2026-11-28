@@ -177,19 +177,26 @@ def vis(o, on_frames):
     for f, h in on_frames:
         o.hide_render = h; o.keyframe_insert("hide_render", frame=f)
 for o in gobjs: vis(o, [(1, False), (F(T0), True), (F(T1), False)])
-# the POV hand: forearm from the bottom right, open palm behind the phone, phone screen to the eye
-pv, scr_pov = phone("phone_pov")
-pv.parent = cam; pv.location = (0.0, -0.035, -0.30); pv.rotation_euler = (R(-90 + 6), R(-4), 0)
-ART = os.path.join(ARTD, "grandpa")
-def card(name, img, w, h, u0, u1, v0, v1, loc, rot):
-    me = bpy.data.meshes.new(name); me.from_pydata([(-w / 2, -h / 2, 0), (w / 2, -h / 2, 0), (w / 2, h / 2, 0), (-w / 2, h / 2, 0)], [], [(0, 1, 2, 3)]); me.update()
-    uv = me.uv_layers.new(); [setattr(uv.data[i], "uv", c) for i, c in enumerate([(u0, v0), (u1, v0), (u1, v1), (u0, v1)])]
-    o = bpy.data.objects.new(name, me); S.collection.objects.link(o); o.parent = cam; o.location = loc; o.rotation_euler = (0, 0, R(rot))
+# the POV hand: right hand from the bottom right, phone resting in the palm, fingers wrapped round the left edge, thumb on the right edge
+root = bpy.data.objects.new("pov_root", None); S.collection.objects.link(root); root.parent = cam
+root.location = (0.0, -0.05, -0.30); root.rotation_euler = (R(-90 + 7), R(-5), R(2))
+pv, scr_pov = phone("phone_pov"); pv.parent = root
+ART = os.path.join(ARTD, "grandpa"); HJ = json.load(open(os.path.join(ART, "pov_hand.json")))
+def cardxz(name, img, x0, x1, z0, z1, y, uv=((0, 0), (1, 0), (1, 1), (0, 1)), rot=0.0, piv=(0, 0)):
+    me = bpy.data.meshes.new(name); me.from_pydata([(x0, 0, z0), (x1, 0, z0), (x1, 0, z1), (x0, 0, z1)], [], [(0, 1, 2, 3)]); me.update()
+    u = me.uv_layers.new(); [setattr(u.data[i], "uv", c) for i, c in enumerate(uv)]
+    o = bpy.data.objects.new(name, me); S.collection.objects.link(o); o.parent = root; o.location = (piv[0], y, piv[1]); o.rotation_euler = (0, R(rot), 0)
     m = bpy.data.materials.new(name + "_m"); m.use_nodes = True; nt = m.node_tree; b = nt.nodes["Principled BSDF"]
-    tx = nt.nodes.new("ShaderNodeTexImage"); tx.image = bpy.data.images.load(os.path.join(ART, img)); tx.extension = "CLIP"
-    nt.links.new(tx.outputs["Color"], b.inputs["Base Color"]); nt.links.new(tx.outputs["Alpha"], b.inputs["Alpha"]); b.inputs["Roughness"].default_value = 0.8; nt.links.new(tx.outputs["Color"], b.inputs["Emission Color"]); b.inputs["Emission Strength"].default_value = 0.55
+    tx = nt.nodes.new("ShaderNodeTexImage"); tx.image = bpy.data.images.load(os.path.join(ART, img)); tx.extension = "CLIP"; tx.interpolation = "Cubic"
+    nt.links.new(tx.outputs["Color"], b.inputs["Base Color"]); nt.links.new(tx.outputs["Alpha"], b.inputs["Alpha"]); b.inputs["Roughness"].default_value = 0.8
+    nt.links.new(tx.outputs["Color"], b.inputs["Emission Color"]); b.inputs["Emission Strength"].default_value = 0.85
     o.data.materials.append(m); o.visible_shadow = False; return o
-hand_pov = card("pov_hand", "hands.png", 0.34, 0.34, 1 / 6, 0.0, 1.0, 0.0, (0.004, -0.02, -0.312), 4)     # open hand turned upside down: fingers up behind the phone
-arm_pov = card("pov_arm", "arm.png", 0.085, 0.36, 0, 1, 0.0, 0.62, (0.075, -0.26, -0.318), 24)
-for o in (pv, scr_pov, hand_pov, arm_pov): vis(o, [(1, True), (F(T0), False), (F(T1), True)])
-SCREENS = [scr_g, scr_pov]
+D = pv["depth"]
+hb = cardxz("pov_hand_back", "pov_back.png", HJ["x0"], HJ["x1"], HJ["z0"], HJ["z1"], D / 2 + 0.0035)
+hf = cardxz("pov_hand_front", "pov_front.png", HJ["x0"], HJ["x1"], HJ["z0"], HJ["z1"], -D / 2 - 0.0009)
+wx, wz = HJ["wrist"]
+# sleeve: cuff end (image bottom) at the wrist, running down and right out of frame
+arm_pov = cardxz("pov_arm", "arm.png", -0.045, 0.045, -0.40, 0.0, D / 2 + 0.006, uv=((0, 0.62), (1, 0.62), (1, 0.0), (0, 0.0)), rot=-28, piv=(wx + 0.002, wz + 0.024))
+povobjs = set(tree(root))
+for o in povobjs: vis(o, [(1, True), (F(T0), False), (F(T1), True)])
+SCREENS = [ph_g, pv]

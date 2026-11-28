@@ -61,15 +61,9 @@ def orange():
     o.data.materials.append(mmat("orange_m", (1.0, 0.45, 0.03), 0.6)); o.scale.z = 0.94
     lf = obj_from(bpy.ops.mesh.primitive_cone_add, "orange_leaf", radius1=0.018, depth=0.04, vertices=8, location=(0.012, 0, 0.075)); lf.data.materials.append(mmat("leaf_m", (0.2, 0.55, 0.15), 0.6)); lf.parent = o
     return o
-def phone(name, screen_col=(0.0, 1.0, 0.0)):
-    b = obj_from(bpy.ops.mesh.primitive_cube_add, name, size=1, location=(0, 0, 0)); b.scale = (0.09, 0.012, 0.185); bpy.context.view_layer.objects.active = b; [x.select_set(x == b) for x in bpy.context.view_layer.objects]; bpy.ops.object.transform_apply(scale=True); bevel(b, 0.012, 4)
-    b.data.materials.append(mmat(name + "_body", (0.05, 0.05, 0.06), 0.25))
-    me = bpy.data.meshes.new(name + "_screen"); hw, hh = 0.041, 0.087
-    me.from_pydata([(-hw, 0, -hh), (hw, 0, -hh), (hw, 0, hh), (-hw, 0, hh)], [], [(0, 1, 2, 3)]); me.update()
-    uv = me.uv_layers.new(); [setattr(uv.data[i], "uv", c) for i, c in enumerate([(0, 0), (1, 0), (1, 1), (0, 1)])]
-    sc = bpy.data.objects.new(name + "_screen", me); S.collection.objects.link(sc); sc.parent = b; sc.location = (0, -0.0085, 0)
-    sm = mmat(name + "_screen_m", screen_col, 0.2, emit=1.0); sc.data.materials.append(sm)
-    return b, sc
+import iphone
+def phone(name, screen_col=(0.0, 1.0, 0.0), emit=1.0):
+    return iphone.build(name, screen_col=screen_col, screen_emit=emit)
 
 def place(o, x, y, rotz=0.0):
     mn, mx = bb(o); o.location.x += x - (mn.x + mx.x) / 2; o.location.y += y - (mn.y + mx.y) / 2; o.location.z += TOP + 0.004 - mn.z; o.rotation_euler.z = R(rotz)
@@ -82,7 +76,7 @@ can = soda_can("soda_can"); place(can, *CAN_T)
 glass = juice_glass("juice_glass"); place(glass, *GLASS_T)
 sm_ = smoothie(); place(sm_, *ITEMS["smoothie"]); gr_ = granola(); place(gr_, *ITEMS["granola"], 12); yo_ = yogurt(); place(yo_, *ITEMS["yogurt"])
 org = orange(); org.location = (0.5, 0.3, TOP + 0.08)
-ph_g, scr_g = phone("phone_grandpa"); ph_m, scr_m = phone("phone_mom", (0.55, 0.75, 1.0))
+ph_g, scr_g = phone("phone_grandpa"); ph_m, scr_m = phone("phone_mom", (0.22, 0.36, 0.9), 0.9)
 
 # warm pendant lamp over the table
 cord = obj_from(bpy.ops.mesh.primitive_cylinder_add, "lamp_cord", radius=0.008, depth=2.2, location=(-0.4, -0.9, 6.9)); cord.data.materials.append(mmat("cord_m", (0.05, 0.05, 0.05)))
@@ -148,14 +142,13 @@ from bpy_extras.object_utils import world_to_camera_view
 corners = {}
 for f in range(1, NFR + 1):
     S.frame_set(f)
-    for scr in SCREENS:
-        par = scr.parent
-        if par.hide_render or scr.hide_render or scr.matrix_world.to_scale().length < 1e-3: continue
-        mw = scr.matrix_world; pts = []
-        for v in scr.data.vertices:
-            p = world_to_camera_view(S, cam, mw @ v.co); pts.append((round(p.x * 1080, 2), round((1 - p.y) * 1920, 2), round(p.z, 3)))
-        n = (mw.to_3x3() @ Vector((0, -1, 0))).normalized(); facing = n.dot((cam.matrix_world.translation - mw.translation).normalized())
-        if facing > 0.1 and all(z > 0 for *_, z in pts): corners[f] = [pts[0][:2], pts[1][:2], pts[2][:2], pts[3][:2]]; break
+    for body in SCREENS:
+        if body.hide_render or body.matrix_world.to_scale().length < 1e-3: continue
+        P4 = iphone.screen_rect_world(body); pts = []
+        for wp in P4:
+            p = world_to_camera_view(S, cam, wp); pts.append((round(p.x * 1080, 2), round((1 - p.y) * 1920, 2), round(p.z, 3)))
+        mw = body.matrix_world; n = (mw.to_3x3() @ Vector((0, -1, 0))).normalized(); facing = n.dot((cam.matrix_world.translation - mw.translation).normalized())
+        if facing > 0.1 and all(z > 0 for *_, z in pts): corners[f] = [q[:2] for q in pts]; break
 json.dump(corners, open(OUT.replace(".blend", "_phone_corners.json"), "w"))
 print("phone frames", len(corners))
 
