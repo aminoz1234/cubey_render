@@ -9,39 +9,42 @@ def V3(x, y, z): return Vector((x, y, z))
 CAMP = {}
 
 # ------------------------------------------------------------ camera beats (new framing every ~2.5-3.5 s, each lands on a line), then Marcus's POV for the scan
-T0, T1 = Lt[5] - 0.3, Le[5] + 0.12
+T0, T1 = Lt[5] - 0.35, Le[5] + 0.12
 RAYH, DALEH, MARH = V3(-0.6, TY + 0.62, 1.62), V3(0.6, TY + 0.62, 1.62), V3(1.58, TY + 0.05, 2.25)
-PLATE_R = V3(RP[0], RP[1], TOP + 0.1)
+PLATE_R = V3((PIE0[0] + CK[0]) / 2, (PIE0[1] + CK[1]) / 2, TOP + 0.06)
 def beat_fns():
-    def hook(f, u):        # close on Ray + plate three, Marcus looming at the right edge; slow push
-        return V3(-0.25 + 0.1 * u, TY - 1.55 + 0.25 * u, 1.55), V3(-0.45, TY + 0.4, 1.3)
-    def ray_close(f, u):   # crash in on Ray, mouth full
+    def hook(f, u):        # Ray stuffing pie with a Coke, Marcus looming in at the right; slow push
+        return V3(0.05 + 0.1 * u, TY - 1.75 + 0.3 * u, 1.62), V3(-0.15, TY + 0.4, 1.4)
+    def ray_close(f, u):   # crash in on Ray
         return V3(-0.75, TY - 0.75 + 0.1 * u, 1.62), V3(-0.6, TY + 0.6, 1.58)
-    def dale_close(f, u):
-        return V3(0.85, TY - 0.8 + 0.12 * u, 1.6), V3(0.6, TY + 0.6, 1.58)
     def marcus_low(f, u):  # low hero angle on Marcus
         return V3(1.05 - 0.15 * u, TY - 1.35, 1.0), V3(1.58, TY + 0.05, 2.1)
+    def dale_close(f, u):
+        return V3(0.85, TY - 0.8 + 0.12 * u, 1.6), V3(0.6, TY + 0.6, 1.58)
     def uncles_wide(f, u):
         return V3(0.0, TY - 2.1 + 0.25 * u, 1.65), V3(0.0, TY + 0.5, 1.35)
-    def cran(f, u):        # Dale holding up the cranberry log
-        return V3(0.2, TY - 1.15 + 0.12 * u, 1.62), V3(0.25, TY + 0.4, 1.55)
-    def three(f, u):       # everyone, from the front, pushing in
-        return V3(0.45, TY - 2.75 + 0.45 * u, 1.85), V3(0.45, TY + 0.4, 1.55)
-    def ray_pie(f, u):     # high angle: Ray turning to the pie
-        return V3(-1.25, TY - 0.6, 2.35 - 0.1 * u), V3(-0.8, TY + 0.25, 1.15)
+    def food_high(f, u):   # high angle over Ray's pie and Coke
+        return V3(-0.95, TY - 0.75, 2.2 - 0.12 * u), V3(-0.5, TY + 0.25, 1.1)
+    def ray_sus(f, u):
+        return V3(-0.35, TY - 0.85 + 0.08 * u, 1.55), V3(-0.6, TY + 0.6, 1.6)
     def marcus_close(f, u):
-        return V3(1.2, TY - 0.95 + 0.1 * u, 2.25), V3(1.58, TY + 0.05, 2.22)
-    def slide(f, u):       # the pie slides from Ray to Dale
-        return V3(-0.1, TY - 1.75 + 0.2 * u, 1.75), V3(-0.05, TY + 0.4, 1.3)
-    def dale_bite(f, u):   # end close on Dale mid-bite (loops into the hook)
-        return V3(0.75, TY - 0.7 + 0.08 * u, 1.62), V3(0.6, TY + 0.6, 1.55)
-    return [(0.0, hook, 0.3), (Lt[1], ray_close, 0.15), (Lt[2], dale_close, 0.3), (Lt[3], marcus_low, 0.35), (Lt[4], uncles_wide, 0.2),
-            (T1, cran, 0.35), (Lt[7], three, 0.4), (Lt[8] - 0.1, ray_pie, 0.45), (Lt[9], marcus_close, 0.25), (Lt[10], slide, 0.3), (Lt[11] - 0.05, dale_bite, 0.25)]
+        return V3(1.05, TY - 1.45 + 0.15 * u, 2.1), V3(1.58, TY + 0.05, 2.05)
+    def crash(f, u):       # "SEVENTY-ONE?" crash zoom on Ray
+        k = sstep(u * 4); return V3(-0.6, TY - 1.3 + 0.55 * k, 1.6), V3(-0.6, TY + 0.6, 1.62)
+    def three(f, u):       # everyone, Marcus showing the phone
+        return V3(0.45, TY - 2.75 + 0.45 * u, 1.85), V3(0.45, TY + 0.4, 1.6)
+    def ray_end(f, u):     # Ray gives in, phone out
+        return V3(-0.2, TY - 1.2 + 0.35 * u, 1.65), V3(-0.5, TY + 0.55, 1.55)
+    def ray_phone(f, u):
+        return V3(-0.85, TY - 0.7 + 0.08 * u, 1.7), V3(-0.55, TY + 0.55, 1.6)
+    return [(0.0, hook, 0.3), (Lt[1], ray_close, 0.15), (Lt[2], marcus_low, 0.3), (Lt[3], dale_close, 0.3), (Lt[4], uncles_wide, 0.25),
+            (Lt[4] + 1.9, food_high, 0.4), (T1, ray_sus, 0.35), (Lt[7], marcus_close, 0.3), (Lt[8] - 0.05, crash, 0.12), (Lt[9], three, 0.35),
+            (Lt[10], ray_end, 0.25), (Lt[10] + 2.0, ray_phone, 0.35)]
 BEATS = beat_fns()
 EYE = MARH + V3(-0.12, -0.08, -0.05)
 def pov(f):
     t = (f - 1) / FPS; u = sstep((t - T0) / (T1 - T0)); look = PLATE_R + V3(0.12, 0.0, 0.0)
-    eye = EYE.lerp(V3(-0.15, TY - 0.15, 1.75), 0.55 + 0.1 * u)      # leaning over the table toward Ray's plate
+    eye = EYE.lerp(V3(-0.2, TY - 0.3, 1.75), 0.55 + 0.1 * u)       # leaning over the table toward Ray's pie and Coke
     return eye, eye + (look - eye).normalized() * 0.30
 def beat_at(f, i):
     t0, fn, bl = BEATS[i]; t1 = BEATS[i + 1][0] if i + 1 < len(BEATS) else (NFR - 1) / FPS
@@ -103,69 +106,61 @@ def eat(t0, t1, period=1.1, to=(0.05, 0.16, 1.33), frm=(0.12, 0.32, None)):
     def p(t):
         u = 0.5 - 0.5 * math.cos(2 * math.pi * (t - t0) / period); return tuple(frm[i] + (to[i] - frm[i]) * u for i in range(3))
     return p
-# Ray: drumstick in the right hand all along
+CKL = ((CK[0] - POS["ray"][0]) / 1.3, (POS["ray"][1] - CK[1]) / 1.3)          # the Coke's table spot in Ray's body space (side, forward)
+PIEL = ((PIE0[0] - POS["ray"][0]) / 1.3, (POS["ray"][1] - PIE0[1]) / 1.3)
+COKE_SIP = (-0.02, 0.17, 1.36)
+# Ray: pie slice in the right hand, Coke in the left
 GR = [
-    (0.0, Lt[1] - 0.05, "R", "3d", eat(0, 2, 1.0), 120, 0.2),                                                     # chewing on the drumstick
-    (Lt[1] + 0.05, Le[1] + 0.1, "R", "2d", (0.5, 1.28), 70, 0.25), (Lt[1] + 0.05, Le[1] + 0.1, "L", "2d", (-0.5, 1.25), 110, 0.25),   # "It's f*cking Thanksgiving"
-    (Le[1] + 0.25, Lt[4] - 0.1, "R", "3d", eat(Le[1] + 0.25, 9, 1.2), 120, 0.25),
-    (Lt[4], Le[4] + 0.2, "L", "3d", (-0.05, 0.42, UP_T + 0.12), -60, 0.15),                                      # "It's a vegetable!" stabs a finger at the plate
-    (Le[4] + 0.3, Lt[8] - 0.2, "R", "3d", eat(Le[4] + 0.3, 18, 1.3), 120, 0.3),
-    (Lt[8] - 0.1, Le[8] + 0.6, "L", "3d", (-0.3, 0.42, UP_T + 0.12), 200, 0.45),                                 # reaches slowly toward the pie
-    (Lt[10], Lt[10] + 1.0, "L", "3d", lambda t: (-0.3 + 0.55 * sstep((t - Lt[10] - 0.15) / 0.7), 0.42, UP_T + 0.1), 0, 0.15),   # shoves it to Dale
-    (Lt[10] + 1.0, Le[10] + 0.2, "R", "2d", (0.55, 1.15), 0, 0.2),                                              # points the drumstick at Dale
+    (0.0, Lt[1] - 0.05, "R", "3d", eat(0, 4, 1.05), 120, 0.2),
+    (1.6, 2.7, "L", "3d", COKE_SIP, 70, 0.3),                                                                      # sip
+    (Lt[1] + 0.05, Le[1] + 0.15, "R", "2d", (0.56, 1.2), 10, 0.2),                                                 # "The f*ck did you just say to me?" slice pointed at Marcus
+    (Le[1] + 0.4, Lt[4] - 0.1, "R", "3d", eat(Le[1] + 0.4, 9, 1.3), 120, 0.3),
+    (Lt[4] + 0.05, Lt[4] + 1.1, "R", "2d", (0.55, 1.12), 0, 0.2),                                                  # "Shut up, Dale"
+    (Lt[4] + 1.3, Lt[4] + 2.2, "L", "3d", (CKL[0], CKL[1], UP_T + 0.1), 0, 0.3),                                 # puts the Coke down by the pie
+    (Lt[4] + 2.3, Le[4] + 0.2, "L", "2d", (-0.42, 0.98), 130, 0.25), (Lt[4] + 2.3, Le[4] + 0.2, "R", "2d", (0.42, 0.98), 60, 0.25),   # "how much sugar is this?"
+    (Lt[6], Le[6] + 0.1, "R", "2d", (0.55, 1.15), 0, 0.2),                                                         # "And how much am I allowed?"
+    (Lt[8] - 0.75, Lt[8] - 0.35, "L", "3d", (CKL[0], CKL[1], UP_T + 0.1), 0, 0.15),                              # grabs the Coke back
+    (Lt[8] - 0.35, Lt[8] + 0.05, "L", "3d", COKE_SIP, 70, 0.15),                                                   # mid-sip ...
+    (Lt[8] + 0.05, Le[8] + 0.3, "L", "2d", (-0.55, 1.32), 105, 0.2), (Lt[8] + 0.05, Le[8] + 0.3, "R", "2d", (0.55, 1.32), 50, 0.15),  # "SEVENTY-ONE?"
+    (Lt[10] - 0.1, Lt[10] + 0.4, "L", "3d", (CKL[0], CKL[1], UP_T + 0.1), 0, 0.12),                              # slams it down
+    (Lt[10] + 1.1, 99, "R", "2d", (0.34, 1.02), 110, 0.5),                                                         # phone up, downloading
 ]
-KR = {"L": [(0, "open"), (Lt[4], "point"), (Le[4] + 0.4, "open"), (Lt[10], "open")], "R": [(0, "grip")]}
-# Dale: chews, points his fork-hand at Marcus, holds up the cranberry, ends with a pie slice
+KR = {"L": [(0, "grip"), (Lt[4] + 2.2, "open"), (Lt[8] - 0.75, "grip"), (Lt[10] + 0.45, "open"), (Lt[10] + 0.8, "fist")],
+      "R": [(0, "grip"), (Lt[1] + 0.05, "point"), (Le[1] + 0.3, "grip"), (Lt[4] + 0.05, "point"), (Lt[4] + 1.15, "grip"), (Lt[4] + 2.3, "open"), (Le[4] + 0.3, "grip"),
+            (Lt[6], "point"), (Le[6] + 0.2, "grip"), (Lt[8] + 0.05, "open"), (Le[8] + 0.4, "grip"), (Lt[10] + 0.9, "palm")]}
+# Dale: drumstick, freezes mid-bite when Ray snaps at him
 GD = [
-    (0.0, Lt[2] - 0.1, "L", "3d", eat(0, 4, 1.25, to=(-0.05, 0.16, 1.33)), 60, 0.2),
-    (Lt[2], Le[2] + 0.1, "R", "2d", (0.58, 1.1), 0, 0.2),                                                        # "Mind your business" points at Marcus
-    (Le[2] + 0.3, Lt[6] - 0.6, "L", "3d", eat(Le[2] + 0.3, 13, 1.4, to=(-0.05, 0.16, 1.33)), 60, 0.3),
-    (Lt[6] - 0.5, Lt[6] - 0.15, "L", "3d", (-0.22, 0.55, UP_T + 0.12), 0, 0.15),                              # grabs the cranberry saucer
-    (Lt[6] - 0.15, Le[6] + 0.5, "L", "2d", (-0.36, 1.32), 0, 0.4),                                              # "Well this is fruit." holds it up, it wobbles
-    (Le[6] + 0.5, Le[6] + 0.9, "L", "3d", (-0.22, 0.55, UP_T + 0.12), 0, 0.15),                                # puts it back
-    (Lt[10] + 1.2, Lt[11] - 0.25, "L", "3d", (-0.2, 0.45, UP_T + 0.1), -80, 0.15),                              # takes a slice of the pie
-    (Lt[11] - 0.25, 99, "L", "3d", (-0.04, 0.17, 1.33), 60, 0.25),                                               # mid-bite
+    (0.0, Lt[4], "R", "3d", eat(0, 9.5, 1.3, to=(0.05, 0.16, 1.33)), 120, 0.2),
+    (Lt[4], Lt[5] - 0.3, "R", "3d", (0.05, 0.16, 1.33), 120, 0.15),                                                # caught mid-bite
+    (Lt[5] - 0.3, 99, "R", "3d", eat(Lt[5] - 0.3, 30, 1.4, to=(0.05, 0.16, 1.33)), 120, 0.3),
+    (Lt[3], Le[3] + 0.1, "L", "2d", (-0.5, 1.05), 160, 0.2),                                                       # "he's not wrong, Ray"
 ]
-KD = {"L": [(0, "fist"), (Lt[6] - 0.5, "grip"), (Le[6] + 0.9, "fist"), (Lt[10] + 1.2, "grip")], "R": [(0, "fist"), (Lt[2], "point"), (Le[2] + 0.3, "fist")]}
-# Marcus: standing, arms easy; phone in the right hand for the scan
+KD = {"R": [(0, "grip")], "L": [(0, "fist"), (Lt[3], "open"), (Le[3] + 0.3, "fist")]}
+# Marcus: points at the pie, shrugs, phone in the right hand from the scan on
 GM = [
-    (0.0, Le[0] + 0.2, "L", "2d", (-0.55, 1.12), 180, 0.2),                                                     # "Unc. That's plate three." points at the plate
-    (Lt[3], Le[3], "L", "2d", (-0.48, 1.08), 160, 0.25),                                                         # "marshmallows on a potato"
-    (Le[3] - 0.4, Lt[5] + 0.0, "R", "2d", (0.3, 1.25), 90, 0.25),                                               # phone comes up
-    (Lt[5], Le[7], "R", "2d", (0.28, 1.2), 90, 0.3),
-    (Lt[7] + 1.2, Le[7], "L", "2d", (-0.45, 1.12), 170, 0.25),                                                  # "Dale, it's shaped like the can"
-    (Lt[9], Le[9] + 0.2, "L", "2d", (-0.3, 1.05), 120, 0.25),                                                   # "You don't wanna know"
-    (Lt[10] + 0.3, 99, "L", "2d", (-0.12, 1.02), 180, 0.35), (Lt[10] + 0.3, 99, "R", "2d", (0.12, 1.02), 0, 0.35),   # arms folded-ish in front
+    (0.6, Le[0] + 0.2, "L", "2d", (-0.55, 1.1), 180, 0.25),                                                        # "Unc. Keep going."
+    (Lt[2], Le[2] + 0.1, "L", "2d", (-0.38, 0.84), 150, 0.3), (Lt[2], Le[2] + 0.1, "R", "2d", (0.38, 0.84), 30, 0.3),   # shrug
+    (Lt[5] - 0.7, Le[5] + 0.3, "R", "2d", (0.3, 1.25), 90, 0.25),                                                  # phone up for the scan
+    (Lt[7], Le[7], "L", "2d", (-0.45, 1.12), 170, 0.25),
+    (Lt[9], Le[9] + 0.3, "R", "2d", (-0.05, 1.2), 90, 0.3),                                                        # shows Ray the app
 ]
-KM = {"L": [(0, "point"), (Le[0] + 0.3, "fist"), (Lt[3], "open"), (Le[3] + 0.2, "fist"), (Lt[7] + 1.2, "point"), (Le[7] + 0.2, "fist"), (Lt[9], "open"), (Le[9] + 0.3, "fist")],
-      "R": [(0, "fist"), (Le[3] - 0.4, "palm"), (Le[7] + 0.3, "fist")]}
+KM = {"L": [(0, "fist"), (0.6, "point"), (Le[0] + 0.3, "fist"), (Lt[2], "open"), (Le[2] + 0.3, "fist"), (Lt[7], "point"), (Le[7] + 0.2, "fist")],
+      "R": [(0, "fist"), (Lt[2], "open"), (Le[2] + 0.3, "fist"), (Lt[5] - 0.7, "palm"), (Le[9] + 0.5, "fist")]}
 BASE_U = {"L": ("3d", (-0.2, 0.3, UP_T + 0.08), -70), "R": ("3d", (0.2, 0.3, UP_T + 0.08), -110)}
 BASE_M = {"L": ("2d", (-0.25, 0.62), -90), "R": ("2d", (0.25, 0.62), -90)}
-shake = lambda t: 7.0 * math.sin(2 * math.pi * 2.2 * (t - Lt[9])) * sstep((t - Lt[9]) / 0.15) * (1 - sstep((t - Lt[9] - 0.9) / 0.2))
+shake = lambda t: 0.0
 ra = build_anim(ray, BASE_U, GR, KR, "ray", seed=1, fwd=fwd_fn(lambda f: POS["ray"][0], lambda f: POS["ray"][1]))
 da = build_anim(dale, BASE_U, GD, KD, "dale", seed=2, fwd=fwd_fn(lambda f: POS["dale"][0], lambda f: POS["dale"][1]))
 ma = build_anim(marcus, BASE_M, GM, KM, "marcus", seed=3, head_extra=shake, fwd=fwd_fn(lambda f: POS["marcus"][0], lambda f: POS["marcus"][1]))
 
 # ------------------------------------------------------------ props in hands
-holders(drum, [(ray, "R", 90, 0, 99)])
+holders(slice_, [(ray, "R", 0, 0, Lt[10] + 0.85)]); pop(slice_, None, Lt[10] + 0.85)
+holders(can, [(ray, "L", -90, 0, Lt[4] + 2.15), (ray, "L", -90, Lt[8] - 0.4, Lt[10] + 0.38)])
+holders(drum, [(dale, "R", 90, 0, 99)])
 ph_m, scr_m = phone("phone_marcus")
-holders(ph_m, [(marcus, "R", 0, Le[3] - 0.4, Le[7] + 0.3)]); pop(ph_m, Le[3] - 0.4, Le[7] + 0.3)
-holders(cran, [(dale, "L", -90, Lt[6] - 0.3, Le[6] + 0.75)])
-holders(slice_, [(dale, "L", 0, Lt[10] + 1.35, 99)]); pop(slice_, Lt[10] + 1.3)
-# cranberry wobble while held up
-cran.scale = (1, 1, 1)
-for f in range(F(Lt[6] - 0.3), F(Le[6] + 0.75)):
-    t = (f - 1) / FPS; s_ = 1 + 0.06 * math.sin(2 * math.pi * 5 * t) * math.exp(-1.5 * (t - Lt[6]))
-    for o in [c for c in cran.children if "ridge" in c.name] + [cran]:
-        pass
-    g_ = 1 + 0.6 * sstep((t - Lt[6] + 0.1) / 0.3) * (1 - sstep((t - Le[6] - 0.3) / 0.3))     # it reads bigger while it's held up (cartoon cheat)
-    cran.scale = (g_ / math.sqrt(s_), g_ / math.sqrt(s_), g_ * s_); cran.keyframe_insert("scale", frame=f)
-cran.scale = (1, 1, 1); cran.keyframe_insert("scale", frame=F(Le[6] + 0.75))
-# the pie slides from Ray's side to Dale's, a slice goes missing at the end
-p0 = Vector((PIE0[0], PIE0[1], pie_.location.z)); p1 = Vector((0.15, TY - 0.08, pie_.location.z))
-for f in range(1, NFR + 1):
-    t = (f - 1) / FPS; u = sstep((t - Lt[10] - 0.15) / 0.7); key(pie_, "location", p0.lerp(p1, u), f)
-
+holders(ph_m, [(marcus, "R", 0, Lt[5] - 0.7, Le[9] + 0.5)]); pop(ph_m, Lt[5] - 0.7, Le[9] + 0.5)
+ph_r, scr_r = phone("phone_ray")
+holders(ph_r, [(ray, "R", 0, Lt[10] + 0.95, 99)]); pop(ph_r, Lt[10] + 0.95)
 # ------------------------------------------------------------ Marcus's POV: hide him, show his hand + phone under the camera
 def tree_(o):
     yield o
@@ -193,6 +188,6 @@ cardxz("pov_hand_front", "pov_front.png", HJ["x0"], HJ["x1"], HJ["z0"], HJ["z1"]
 wx, wz = HJ["wrist"]
 cardxz("pov_arm", "arm.png", -0.05, 0.05, -0.40, 0.0, D / 2 + 0.006, uv=((0, 0.62), (1, 0.62), (1, 0.0), (0, 0.0)), rot=-28, piv=(wx + 0.002, wz + 0.024))
 for o in set(tree_(root)): vis(o, [(1, True), (F(T0), False), (F(T1), True)])
-SCREENS = [ph_m, pv]
-TIMES = {"POV": [T0, T1], "scan": Lt[5], "pie_slide": Lt[10] + 0.15}
+SCREENS = [ph_m, pv, ph_r]
+TIMES = {"POV": [T0, T1], "scan": Lt[5] - 0.05, "slam": Lt[10] + 0.38, "choke": Lt[8]}
 json.dump(TIMES, open(OUT.replace(".blend", "_times.json"), "w"))

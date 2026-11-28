@@ -99,7 +99,7 @@ for sx in (-1, 1):
     d = blob(f"drum{sx}", (sx * 0.15, TY - 0.03, Z0 + 0.09), 0.055, (1.4, 0.8, 0.8), TURKEY, k="platter"); d.rotation_euler = (0, 0, R(sx * -30))
     bone = obj_from(bpy.ops.mesh.primitive_cylinder_add, f"bone{sx}", radius=0.012, depth=0.07, location=(sx * 0.22, TY - 0.07, Z0 + 0.1)); bone.rotation_euler = (0, R(90), R(sx * -30)); bone.data.materials.append(MALLOW); bone["kit"] = "platter"
 # sweet potato casserole (white dish, orange mash, toasted marshmallows) in front of Ray
-CAS = (-0.5, TY - 0.12)
+CAS = (0.42, TY - 0.13)
 dish = obj_from(bpy.ops.mesh.primitive_cube_add, "cas_dish", size=1, location=(CAS[0], CAS[1], Z0 + 0.04)); dish.scale = (0.32, 0.22, 0.08)
 bv = dish.modifiers.new("bev", "BEVEL"); bv.width = 0.02; bv.segments = 3; dish.data.materials.append(mmat("dish_m", (0.96, 0.96, 0.94), 0.2)); dish["kit"] = "casserole"
 fillc = obj_from(bpy.ops.mesh.primitive_cube_add, "cas_fill", size=1, location=(CAS[0], CAS[1], Z0 + 0.082)); fillc.scale = (0.29, 0.19, 0.01); fillc.data.materials.append(SWEET); fillc["kit"] = "casserole"
@@ -108,7 +108,7 @@ for i in range(34):
     x = CAS[0] + rnd.uniform(-0.13, 0.13); y = CAS[1] + rnd.uniform(-0.08, 0.08)
     blob(f"mallow{i}", (x, y, Z0 + 0.095), 0.018, (1, 1, 0.75), TOAST if rnd.random() < 0.45 else MALLOW, k="casserole")
 # Ray's plate three: a mountain
-RP = (-0.6, TY + 0.25)
+RP = (-0.88, TY + 0.25)
 plate("ray_plate", RP[0], RP[1], 0.15)
 blob("ray_mash", (RP[0] - 0.03, RP[1], Z0 + 0.05), 0.08, (1, 1, 0.75), MASH, k="ray_plate")
 blob("ray_gravy", (RP[0] - 0.03, RP[1], Z0 + 0.1), 0.045, (1.1, 1.1, 0.35), GRAVY, k="ray_plate")
@@ -129,7 +129,7 @@ def cranberry(name):      # origin under the saucer, so a hand holding it shows 
         r_ = obj_from(bpy.ops.mesh.primitive_torus_add, f"{name}_ridge{i}", major_radius=0.05, minor_radius=0.005, location=(0, 0, z)); r_.data.materials.append(CRAN); r_.parent = c
     sc = obj_from(bpy.ops.mesh.primitive_cylinder_add, name + "_saucer", radius=0.095, depth=0.012, vertices=40, location=(0, 0, 0.006)); smooth(sc); sc.data.materials.append(PLATE); sc.parent = c
     return c
-cran = cranberry("cranberry"); CR = (0.42, TY - 0.1); cran.location = (CR[0], CR[1], Z0 + 0.001); tag(cran, "cranberry")
+cran = cranberry("cranberry"); CR = (0.86, TY + 0.02); cran.location = (CR[0], CR[1], Z0 + 0.001); tag(cran, "cranberry")
 # pecan pie next to Ray (he slides it to Dale at the end)
 def pie(name):
     p = obj_from(bpy.ops.mesh.primitive_cylinder_add, name, radius=0.14, depth=0.045, vertices=48, location=(0, 0, 0)); smooth(p); p.data.materials.append(CRUST)
@@ -139,10 +139,10 @@ def pie(name):
         n_ = obj_from(bpy.ops.mesh.primitive_uv_sphere_add, f"{name}_pecan{i}", radius=0.018, segments=10, ring_count=6, location=(rr * math.cos(a), rr * math.sin(a), 0.03)); n_.scale = (1.4, 0.8, 0.45); n_.rotation_euler = (0, 0, a)
         n_.data.materials.append(PECAN); n_.parent = p
     return p
-pie_ = pie("pie"); PIE0 = (-1.0, TY - 0.02); pie_.location = (PIE0[0], PIE0[1], Z0 + 0.023); tag(pie_, "pie")
+pie_ = pie("pie"); PIE0 = (-0.42, TY - 0.05); pie_.location = (PIE0[0], PIE0[1], Z0 + 0.023); tag(pie_, "pie")
 # gravy boat, bottles, roll basket
 gb = imp(f"{RB}/bowl.gltf", "gravyboat", (0.0, TY + 0.47, Z0), 0, (0.22, 0.32, 0.25))
-for i, (x, y) in enumerate(((-0.95, TY + 0.3), (0.95, TY + 0.32))):
+for i, (x, y) in enumerate(((-1.12, TY + 0.48), (1.0, TY + 0.4))):
     bt = obj_from(bpy.ops.mesh.primitive_cylinder_add, f"bottle{i}", radius=0.032, depth=0.2, vertices=24, location=(x, y, Z0 + 0.1)); smooth(bt); bt.data.materials.append(GLOSS("bottle_m", (0.22, 0.1, 0.02), 0.1)); bt["kit"] = f"bottle{i}"
     nk = obj_from(bpy.ops.mesh.primitive_cone_add, f"bottle{i}_neck", radius1=0.032, radius2=0.012, depth=0.08, vertices=24, location=(x, y, Z0 + 0.24)); smooth(nk); nk.data.materials.append(bt.data.materials[0]); nk["kit"] = f"bottle{i}"
 imp(f"{RB}/food_dinner.gltf", "rolls", (0.75, TY - 0.15, Z0), 0, (0.2, 0.2, 0.2))
@@ -159,6 +159,14 @@ def pie_slice(name):
     o = bpy.data.objects.new(name, me); S.collection.objects.link(o); o.data.materials.append(CRUST); o.data.materials.append(PECAN)
     o.data.polygons[1].material_index = 1; return o
 slice_ = pie_slice("pie_slice")
+def coke(name):           # 12 oz can, red with a white swoosh band; origin at the bottom
+    c = obj_from(bpy.ops.mesh.primitive_cylinder_add, name, radius=0.033, depth=0.122, vertices=40, location=(0, 0, 0)); smooth(c)
+    for v in c.data.vertices: v.co.z += 0.061
+    c.data.materials.append(GLOSS("coke_m", (0.75, 0.02, 0.03), 0.25))
+    band = obj_from(bpy.ops.mesh.primitive_cylinder_add, name + "_band", radius=0.0335, depth=0.02, vertices=40, location=(0, 0, 0.07)); band.data.materials.append(mmat("cokeband_m", (0.95, 0.95, 0.95), 0.3)); band.parent = c
+    lid = obj_from(bpy.ops.mesh.primitive_cylinder_add, name + "_lid", radius=0.029, depth=0.006, vertices=40, location=(0, 0, 0.124)); lid.data.materials.append(mmat("alu_m", (0.8, 0.8, 0.82), 0.25)); lid.parent = c
+    return c
+can = coke("coke"); CK = (-0.7, TY - 0.08); can.location = (CK[0], CK[1], Z0 + 0.001); tag(can, "coke")
 
 # ------------------------------------------------------------ light: warm dinner light from a pendant over the table, cool night window, soft fill from the camera side
 w = S.world = bpy.data.worlds.new("room"); w.use_nodes = True; w.node_tree.nodes["Background"].inputs[0].default_value = (0.12, 0.08, 0.06, 1); w.node_tree.nodes["Background"].inputs[1].default_value = 0.2
