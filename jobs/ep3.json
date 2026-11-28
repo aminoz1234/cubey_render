@@ -1,1 +1,1 @@
-{"blend": "scenes/ep3/ep3.blend", "start": 1, "end": 861, "fps": 30, "res": [720, 1280], "output": [1080, 1920], "samples": 32, "chunks": 20, "blender": "5.3.0", "no_queue": true}
+{"blend": "scenes/ep3/ep3.blend", "start": 1, "end": 861, "fps": 30, "res": [540, 960], "output": [1080, 1920], "samples": 16, "chunks": 20, "blender": "5.3.0", "no_queue": true}
