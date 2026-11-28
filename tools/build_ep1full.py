@@ -110,7 +110,7 @@ for who, r in RIG.items():
 def grip_world(r, sd, axis_deg):
     """World matrix a held prop has in the rest pose: at the grip point, axis turned in the card plane, squashed in depth."""
     arm = r["arm"]; g = r["grip"][sd]
-    local = Matrix.Translation(g) @ Euler((0, R(axis_deg), 0)).to_matrix().to_4x4() @ Matrix.Diagonal((1, 0.45, 1, 1))
+    local = Matrix.Translation(g) @ Euler((0, R(axis_deg), 0)).to_matrix().to_4x4() @ Matrix.Diagonal((1, 0.08, 1, 1))
     return arm.matrix_world @ local
 def holders(obj, spans):
     """spans: [(rig, side, axis_deg, t_on, t_off)]; outside every span the prop rests at its own (table) transform."""

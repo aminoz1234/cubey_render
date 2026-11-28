@@ -114,12 +114,12 @@ def build(who, loc, art_dir, head_dir, head_meta, cam, scale=1.3, frames=150):
         # hands: palm layer behind the prop, finger layer in front; both read one cell of the hand atlas
         hm2 = art["hands"]; cw = hm2["cell"]; n = len(HANDS); wx, wy = hm2["wrist"]
         x0, x1 = s * S["shW"] - (wx / U) * (-1 if fl else 1), s * S["shW"] + ((cw - wx) / U) * (-1 if fl else 1); z1, z0 = wrZ + wy / U, wrZ - (cw - wy) / U
-        for lay, y in (("back", -0.014), ("front", -0.075)):
+        for lay, y in (("back", -0.0115), ("front", -0.024)):
             m = _mat(f"{who}_hand{lay}_m.{sd}", f"{D}/hands.png", atlas=True)
             o = _plane(f"{who}_hand{lay}.{sd}", min(x0, x1), z0, max(x0, x1), z1, y, m, u0=0, u1=1 / n, flip=fl); rigid(o, f"hand.{sd}"); parts[f"hand{lay}.{sd}"] = o
     # grip point (where a held prop's centre goes) in rest pose, per side
     gx, gy = art["hands"]["grip"]; wx, wy = art["hands"]["wrist"]
-    grip = {sd: Vector((s * S["shW"] + (gx - wx) / U * s, -0.044, wrZ - (gy - wy) / U)) for sd, s in (("L", -1), ("R", 1))}
+    grip = {sd: Vector((s * S["shW"] + (gx - wx) / U * s, -0.018, wrZ - (gy - wy) / U)) for sd, s in (("L", -1), ("R", 1))}
     return dict(arm=arm, T=T, parts=parts, grip=grip, S=S, z=dict(hip=hipZ, sh=shZ, neck=neckZ, el=elZ, wr=wrZ, kn=knZ, ank=ank), n=len(HANDS))
 
 def set_hand(rig, sd, kind, frame):
@@ -142,7 +142,7 @@ def rotate_bone(rig, bname, deg, frame):   # (kept for one-off keys)
 def hold(rig, sd, obj, axis_deg=90):
     """Child Of the hand bone: obj sits at the grip point, its long axis along the hand's x (across the palm)."""
     arm = rig["arm"]; bpy.context.view_layer.update()
-    obj.parent = None; obj.rotation_mode = "XYZ"; obj.scale = (1, 0.45, 1)          # props held in a hand are squashed in depth so palm/fingers layers wrap them
+    obj.parent = None; obj.rotation_mode = "XYZ"; obj.scale = (1, 0.08, 1)          # props held in a hand are squashed in depth so palm/fingers layers wrap them
     gw = arm.matrix_world @ rig["grip"][sd]
     obj.location = gw; obj.rotation_euler = (0, math.radians(axis_deg), 0); obj.rotation_euler.rotate(arm.matrix_world.to_euler())
     c = obj.constraints.new("CHILD_OF"); c.target = arm; c.subtarget = f"hand.{sd}"

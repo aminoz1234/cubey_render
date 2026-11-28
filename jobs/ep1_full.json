@@ -1,1 +1,1 @@
-{"blend": "scenes/ep1full/ep1full.blend", "start": 1, "end": 1239, "fps": 30, "res": [720, 1280], "output": [1080, 1920], "samples": 40, "chunks": 20, "blender": "5.3.0"}
+{"blend": "scenes/ep1full/ep1full.blend", "start": 1, "end": 1239, "fps": 30, "res": [720, 1280], "output": [1080, 1920], "samples": 28, "chunks": 20, "blender": "5.3.0"}

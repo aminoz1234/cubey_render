@@ -92,7 +92,7 @@ rig2.set_hand(mom, "R", "point", F(27.6)); rig2.set_hand(mom, "R", "wave", F(31.
 # ---------------- GRANDPA: leans on the table, looks up, points at the can and the glass, holds an orange, phone
 c = A(gpa); z = gpa["z"]
 for sd, s in (("L", -1), ("R", 1)): c.key(f"foot.{sd}", 1, s * gpa["S"]["hipW"], z["ank"])
-rest = {"L": (-0.3, TOPL), "R": (0.2, 0.56)}
+rest = {"L": (-0.2, 0.56), "R": (0.2, 0.56)}
 c.key("hand.L", 1, *rest["L"]).key("fingers.L", 1, -90).key("hand.R", 1, *rest["R"]).key("fingers.R", 1, -80)
 c.key("spine", 1, 3).key("spine", F(9.2), 3).key("spine", F(10.0), 0)
 cpt = ((CAN_T[0] - POS["grandpa"][0]) / SC, TOPL + 0.05); gpt = ((GLASS_T[0] - POS["grandpa"][0]) / SC, TOPL + 0.05)
@@ -188,8 +188,8 @@ def cardxz(name, img, x0, x1, z0, z1, y, uv=((0, 0), (1, 0), (1, 1), (0, 1)), ro
     o = bpy.data.objects.new(name, me); S.collection.objects.link(o); o.parent = root; o.location = (piv[0], y, piv[1]); o.rotation_euler = (0, R(rot), 0)
     m = bpy.data.materials.new(name + "_m"); m.use_nodes = True; nt = m.node_tree; b = nt.nodes["Principled BSDF"]
     tx = nt.nodes.new("ShaderNodeTexImage"); tx.image = bpy.data.images.load(os.path.join(ART, img)); tx.extension = "CLIP"; tx.interpolation = "Cubic"
-    nt.links.new(tx.outputs["Color"], b.inputs["Base Color"]); nt.links.new(tx.outputs["Alpha"], b.inputs["Alpha"]); b.inputs["Roughness"].default_value = 0.8
-    nt.links.new(tx.outputs["Color"], b.inputs["Emission Color"]); b.inputs["Emission Strength"].default_value = 0.85
+    b.inputs["Base Color"].default_value = (0, 0, 0, 1); nt.links.new(tx.outputs["Alpha"], b.inputs["Alpha"]); b.inputs["Specular IOR Level"].default_value = 0.0
+    nt.links.new(tx.outputs["Color"], b.inputs["Emission Color"]); b.inputs["Emission Strength"].default_value = 1.0
     o.data.materials.append(m); o.visible_shadow = False; return o
 D = pv["depth"]
 hb = cardxz("pov_hand_back", "pov_back.png", HJ["x0"], HJ["x1"], HJ["z0"], HJ["z1"], D / 2 + 0.0035)
