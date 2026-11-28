@@ -157,3 +157,8 @@ for im in bpy.data.images:
     if im.source == "FILE" and not im.packed_file: im.pack()
 bpy.ops.wm.save_as_mainfile(filepath=OUT, relative_remap=True)
 print("saved", OUT)
+
+# motion QA: never render a scene that fails this (sliding hand drawings, drifting props, spinning wrists)
+import subprocess
+rc = subprocess.run([sys.executable, os.path.join(HERE, "motion_check.py"), OUT]).returncode
+print("MOTION CHECK", "PASSED" if rc == 0 else "FAILED: do not render")
