@@ -11,6 +11,9 @@ SKEL = {
     "son": dict(hip=0.5, sh=0.9, neck=0.95, shW=0.14, hipW=0.07, up=0.21, fo=0.195, th=0.25, sn=0.235, hand=0.9, ank=0.045, headR=0.34),
     "nora": dict(hip=0.62, sh=1.1, neck=1.15, shW=0.16, hipW=0.07, up=0.25, fo=0.235, th=0.31, sn=0.29, hand=1.0, ank=0.05, headR=0.36),
     "jess": dict(hip=0.62, sh=1.1, neck=1.15, shW=0.165, hipW=0.07, up=0.25, fo=0.235, th=0.31, sn=0.29, hand=1.0, ank=0.05, headR=0.36),
+    "ray": dict(hip=0.62, sh=1.12, neck=1.17, shW=0.21, hipW=0.09, up=0.25, fo=0.235, th=0.31, sn=0.29, hand=1.08, ank=0.05, headR=0.39),
+    "dale": dict(hip=0.62, sh=1.12, neck=1.17, shW=0.21, hipW=0.09, up=0.25, fo=0.235, th=0.31, sn=0.29, hand=1.08, ank=0.05, headR=0.39),
+    "marcus": dict(hip=0.66, sh=1.2, neck=1.25, shW=0.205, hipW=0.075, up=0.27, fo=0.25, th=0.33, sn=0.31, hand=1.08, ank=0.05, headR=0.34),
     "grandpa": dict(hip=0.62, sh=1.1, neck=1.15, shW=0.17, hipW=0.075, up=0.25, fo=0.235, th=0.31, sn=0.29, hand=1.0, ank=0.05, headR=0.35),
 }
 HANDS = ["open", "fist", "point", "gripBack", "gripFront", "wave"]
@@ -258,11 +261,22 @@ def rx(v, deg):      # tip toward the camera
     c, s_ = math.cos(math.radians(deg)), math.sin(math.radians(deg)); return (v[0], v[1] * c - v[2] * s_, v[1] * s_ + v[2] * c)
 def tp(v):           # direction -> (in-plane angle from straight down, pitch toward camera), the bone's Euler (X then Z)
     v = norm(v); return math.degrees(math.atan2(v[0], -v[2])), math.degrees(math.asin(max(-1.0, min(1.0, v[1]))))
-def ik3(a, t, l1, l2, pole):
-    """two-bone IK in 3D: the joint bends toward 'pole' (a direction)."""
+def ik3(a, t, l1, l2, pole, mem=None, key=None):
+    """two-bone IK in 3D: the joint bends toward 'pole' (a direction). With mem/key the bend direction is kept
+    continuous: when the pole lines up with the limb (its useful part gets small) the joint keeps last frame's bend
+    instead of flipping to the other side."""
     d = sub3(t, a); D = math.sqrt(sum(c * c for c in d)); D = max(min(D, (l1 + l2) * 0.999), abs(l1 - l2) + 1e-4); n = norm(d)
-    pd = sum(pole[i] * n[i] for i in range(3)); p = norm(tuple(pole[i] - pd * n[i] for i in range(3)))
+    pd = sum(pole[i] * n[i] for i in range(3)); pr = tuple(pole[i] - pd * n[i] for i in range(3))
+    L = math.sqrt(sum(c * c for c in pr)) / (math.sqrt(sum(c * c for c in pole)) or 1.0)
+    if mem is not None and key in mem:
+        q = mem[key]; qd = sum(q[i] * n[i] for i in range(3)); q = norm(tuple(q[i] - qd * n[i] for i in range(3)))
+        w = max(0.0, min(1.0, (L - 0.15) / 0.35))           # strong pole -> follow it; weak pole -> keep the old bend
+        if L > 1e-6:
+            pn = norm(pr); pr = tuple(pn[i] * w + q[i] * (1 - w) for i in range(3))
+        else: pr = q
+    p = norm(pr)
     if abs(sum(c * c for c in p) - 1) > 0.5: p = (0.0, 0.0, 1.0)
+    if mem is not None: mem[key] = p
     ca = (l1 * l1 + D * D - l2 * l2) / (2 * l1 * D); al = math.acos(max(-1.0, min(1.0, ca)))
     E = tuple(a[i] + l1 * (math.cos(al) * n[i] + math.sin(al) * p[i]) for i in range(3)); W = tuple(a[i] + D * n[i] for i in range(3))
     return E, W
@@ -359,14 +373,23 @@ class Anim:
                     w3 = (at(f"w3.{sd}", f)[0] if (f"w3.{sd}" in self.t or f"w3.{sd}" in OV) else 1.0) if has3 else 0.0
                     T2 = at(f"hand.{sd}", f) if has2 else (s * 0.22, 0.6)
                     T = (T2[0], 0.0, T2[1]); side2 = bend.get(f"arm.{sd}", -s)
-                    pole = (s * (1.0 if side2 * -s > 0 else -1.0), 0.0, -0.25)
+                    # 2D gestures: bend to a fixed SIDE of the shoulder->hand line (like a 2D rig's bend sign), so the
+                    # elbow can never flip, whatever the line's direction. bend arm.L=-1 / arm.R=+1 = outward.
+                    nT = norm(sub3(T, S3)); perp = (-nT[2], 0.0, nT[0])
+                    dpr = perp[0] * s - perp[2]                      # which side of the line is "out and down" for this arm
+                    sdv = last.get("side" + sd, 1.0 if dpr >= 0 else -1.0)
+                    if dpr * sdv < -0.35: sdv = -sdv                 # hysteresis: only switch sides when clearly needed
+                    last["side" + sd] = sdv
+                    ph_t = 0.0 if sdv > 0 else 180.0; ph = last.get("phi" + sd, ph_t)
+                    ph += max(-22.0, min(22.0, ph_t - ph)); last["phi" + sd] = ph   # a side switch swings the elbow round the back over a few frames
+                    cph, sph = math.cos(math.radians(ph)), math.sin(math.radians(ph))
+                    pole = (perp[0] * cph, -sph, perp[2] * cph)
                     if has3:
                         b3 = at(f"hand3.{sd}", f); c3 = body(b3); T3 = (c3[0], c3[1], c3[2])
                         T = tuple(T[i] + (T3[i] - T[i]) * w3 for i in range(3))
-                        back = body((0.0, -1.0, 0.0)); pole = tuple(pole[i] * (1 - w3) + (s * 0.6, back[1] * 0.8, -0.2)[i] * w3 for i in range(3))
+                        back = body((0.0, -1.0, 0.0)); pole = tuple(pole[i] * (1 - w3) + (s * 0.5, back[1] * 0.25, -1.0)[i] * w3 for i in range(3))
                     E, W = ik3(S3, T, S["up"], S["fo"], pole)
                     du = norm(sub3(E, S3)); dfo = norm(sub3(W, E))
-                    if os.environ.get("DBGW"): _DBG.setdefault(arm.name, {})[f"{sd}{f}"] = W
                     tu, pu = tp(rz(du, -sp)); tf, pf = tp(rx(rz(rz(dfo, -sp), -tu), -pu))
                     if TUBE: orient(f"upper.{sd}", du, f); orient(f"fore.{sd}", dfo, f)
                     else: rot(f"upper.{sd}", tu, f, pu); rot(f"fore.{sd}", tf, f, pf)
@@ -374,10 +397,15 @@ class Anim:
                     flat = math.hypot(dfo[0], dfo[2])                    # how much of the forearm lies in the card plane
                     if f"fingers.{sd}" in self.t:
                         fg = at(f"fingers.{sd}", f)[0]
-                        if flat > 0.6:                                   # a wrist bends, it doesn't spin: clamp what the camera sees
-                            fa = a_fo - 90; rl = (fg - fa + 180) % 360 - 180
-                            pr = last.get("vis" + sd, rl); rl = pr + ((rl - pr + 180) % 360 - 180); last["vis" + sd] = rl
-                            fg = fa + max(-62.0, min(62.0, rl))
+                        # a wrist bends, it doesn't spin: clamp what the camera sees. The clamp fades in with how flat the
+                        # forearm lies in the card (a hard on/off threshold made the hand jump when the forearm crossed it).
+                        pi_ = last.get("fgi" + sd, fg); fg = pi_ + max(-18.0, min(18.0, ((fg - pi_) + 180) % 360 - 180)); last["fgi" + sd] = fg
+                        fg0 = fg; fa = a_fo - 90; rl = (fg - fa + 180) % 360 - 180
+                        pr = last.get("vis" + sd, rl); rl = pr + ((rl - pr + 180) % 360 - 180); last["vis" + sd] = rl
+                        cw = max(0.0, min(1.0, (flat - 0.35) / 0.35)); cw = cw * cw * (3 - 2 * cw)
+                        fgc = fa + max(-62.0, min(62.0, rl)); fg = fg + cw * (((fgc - fg) + 180) % 360 - 180)
+                        po = last.get("fgo" + sd, fg); lim = 18.0 + 40.0 * cw
+                        fg = po + max(-lim, min(lim, ((fg - po) + 180) % 360 - 180)); last["fgo" + sd] = fg   # while the clamp fades, the hand can't whip round
                         hd = (math.cos(math.radians(fg)), 0.0, math.sin(math.radians(fg)))   # hands face the camera: no depth
                         th, ph = tp(rx(rz(rx(rz(rz(hd, -sp), -tu), -pu), -tf), -pf))
                         pr = last.get("rel" + sd, th); th = pr + ((th - pr + 180) % 360 - 180); last["rel" + sd] = th
