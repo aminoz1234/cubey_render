@@ -2,7 +2,7 @@
 armature with real bones, limbs = one straight drawing on a mesh skinned to two bones (smooth bend at the joint),
 IK hand/foot targets with poles, rigid parts on single bones, a hand-drawing library swapped by UV offset,
 props held with a Child Of constraint on the hand bone. Everything lives in the character's card plane (x right, z up)."""
-import bpy, math, json
+import bpy, math, json, os
 from mathutils import Vector, Matrix
 
 U = 1000.0
@@ -56,12 +56,19 @@ def _plane(name, x0, z0, x1, z1, y, mat, nseg=1, u0=0.0, u1=1.0, flip=False):
     o = bpy.data.objects.new(name, me); bpy.context.scene.collection.objects.link(o); me.materials.append(mat)
     return o
 
+def _pitch_axis(arm, bname):
+    """Local axis that swings this bone toward/away from the camera (world X in rig space)."""
+    ml = arm.data.bones[bname].matrix_local.to_3x3()
+    j = max(range(3), key=lambda k: abs(ml.col[k].x)); return j, (1 if ml.col[j].x > 0 else -1)
+
 def _bone_axis(arm, bname):
     """Which local rotation axis of this bone turns it inside the card plane (world Y), and its sign."""
     ml = arm.data.bones[bname].matrix_local.to_3x3()
     i = max(range(3), key=lambda k: abs(ml.col[k].y)); return i, (1 if ml.col[i].y > 0 else -1)
 
 HOSE = True        # rubber-hose bendy limbs (Nov 28); False = the old hinge limbs
+_DBG = {}
+TUBE = True        # limb cards turn around their own length to face the camera (no edge-on slivers)
 LIFE = True        # drag / overshoot / arcs / anticipation / breathing on baked motion
 
 def build(who, loc, art_dir, head_dir, head_meta, cam, scale=1.3, frames=150):
@@ -90,7 +97,7 @@ def build(who, loc, art_dir, head_dir, head_meta, cam, scale=1.3, frames=150):
     if HOSE:
         for sd in "LR":
             for n_ in ("upper", "fore", "thigh", "shin"):
-                b = eb[f"{n_}.{sd}"]; b.bbone_segments = 16; b.bbone_easein = 1.3; b.bbone_easeout = 1.3
+                b = eb[f"{n_}.{sd}"]; b.bbone_segments = 16; b.bbone_easein = 0.45; b.bbone_easeout = 0.45
                 b.bbone_handle_type_start = "AUTO"; b.bbone_handle_type_end = "AUTO"
     bpy.ops.object.mode_set(mode="OBJECT")
     for sd in "LR": ad.bones[f"foot.{sd}"].use_inherit_rotation = False
@@ -118,7 +125,7 @@ def build(who, loc, art_dir, head_dir, head_meta, cam, scale=1.3, frames=150):
         am = art["arm"]; f = px(am, "shoulder", s * S["shW"], shZ - 0.02, fl); x0, z0 = f(0 if not fl else am["W"], am["H"]); x1, z1 = f(am["W"] if not fl else 0, 0)
         o = _plane(f"{who}_arm.{sd}", min(x0, x1), z0, max(x0, x1), z1, -0.01, _mat(f"{who}_arm_m.{sd}", f"{D}/arm.png"), nseg=40); skin(o, [f"upper.{sd}", f"fore.{sd}"])
         for v in o.data.vertices:
-            bw = 0.16 if HOSE else 0.09
+            bw = 0.11 if HOSE else 0.09
             w = max(0.0, min(1.0, (elZ + bw / 2 - v.co.z) / bw)); w = w * w * (3 - 2 * w)
             o.vertex_groups[f"fore.{sd}"].add([v.index], w, "REPLACE"); o.vertex_groups[f"upper.{sd}"].add([v.index], 1 - w, "REPLACE")
             v.co.y -= 0.004 * w                                   # forearm sits a hair in front of the upper arm: no coplanar overlap when folded
@@ -126,7 +133,7 @@ def build(who, loc, art_dir, head_dir, head_meta, cam, scale=1.3, frames=150):
         lm = art["leg"]; f = px(lm, "hip", s * S["hipW"], hipZ, fl); x0, z0 = f(0, lm["H"]); x1, z1 = f(lm["W"], 0)
         o = _plane(f"{who}_leg.{sd}", min(x0, x1), z0, max(x0, x1), z1, 0.02, _mat(f"{who}_leg_m.{sd}", f"{D}/leg.png"), nseg=40); skin(o, [f"thigh.{sd}", f"shin.{sd}"])
         for v in o.data.vertices:
-            bw = 0.14 if HOSE else 0.08
+            bw = 0.1 if HOSE else 0.08
             w = max(0.0, min(1.0, (knZ + bw / 2 - v.co.z) / bw)); w = w * w * (3 - 2 * w)
             o.vertex_groups[f"shin.{sd}"].add([v.index], w, "REPLACE"); o.vertex_groups[f"thigh.{sd}"].add([v.index], 1 - w, "REPLACE")
             v.co.y -= 0.004 * w
@@ -213,33 +220,59 @@ def _life(anim, f0, f1, S, z):
         X, Z = [], []
         for i in range(L_):
             p = P[i]; q = P[min(L_ - 1, i + look)]; d = (q[0] - p[0], q[1] - p[1])
-            ax, az = p[0] - 0.45 * d[0], p[1] - 0.45 * d[1]                       # anticipation: lean back before going
+            ax, az = p[0] - 0.2 * d[0], p[1] - 0.2 * d[1]                       # anticipation: lean back before going
             pv = P[max(0, i - 1)]; vx, vz = p[0] - pv[0], p[1] - pv[1]; sp = math.hypot(vx, vz)
             if sp > 1e-5:                                                         # arc: bow the path outward / upward
                 nx, nz = -vz / sp, vx / sp
                 if nx * s_ + nz < 0: nx, nz = -nx, -nz
-                ax += nx * min(0.05, sp * 1.6); az += nz * min(0.05, sp * 1.6)
+                ax += nx * min(0.015, sp * 0.6); az += nz * min(0.015, sp * 0.6)
             X.append(ax); Z.append(az)
-        X = _spring(X, 3.2, 0.48); Z = _spring(Z, 3.2, 0.48)
+        X = _spring(X, 4.5, 0.72); Z = _spring(Z, 4.5, 0.72)
         OV[n] = {f: (X[i], Z[i]) for i, f in enumerate(fr)}
         fn = f"fingers.{sd}"
         if fn in anim.t:
             A = [anim.tr(fn).at(f)[0] for f in fr]
             for i in range(1, len(A)): A[i] = A[i - 1] + ((A[i] - A[i - 1] + 180) % 360 - 180)
             # the hand trails the arm: add a little of the arm's own motion, delayed, then spring it
-            A = _spring([a - 0.6 * ((X[i] - X[max(0, i - 2)]) * 400 * s_) for i, a in enumerate(A)], 2.6, 0.42)
+            A = _spring([a - 0.25 * ((X[i] - X[max(0, i - 2)]) * 400 * s_) for i, a in enumerate(A)], 4.0, 0.7)
             OV[fn] = {f: (A[i],) for i, f in enumerate(fr)}
+    for sd in "LR":
+        n = f"hand3.{sd}"
+        if n in anim.t:
+            P3 = [anim.tr(n).at(f) for f in fr]
+            cols = [_spring([p[k] for p in P3], 4.5, 0.72) for k in range(3)]
+            OV[n] = {f: (cols[0][i], cols[1][i], cols[2][i]) for i, f in enumerate(fr)}
     hb = [anim.tr("hips").at(f)[0] if "hips" in anim.t else 0.0 for f in fr]
     sp = [(anim.tr("spine").at(f)[0] if "spine" in anim.t else 0.0) + 1.1 * math.sin(2 * math.pi * 0.27 * f / 30.0) for f in fr]   # breathing
     hd = [(anim.tr("head").at(f)[0] if "head" in anim.t else 0.0) for f in fr]
-    hd = _spring([h - 0.5 * s for h, s in zip(hd, sp)], 2.4, 0.4)                # head settles after the body
+    hd = _spring([h - 0.4 * s for h, s in zip(hd, sp)], 3.0, 0.6)                # head settles after the body
     OV["spine"] = {f: (sp[i],) for i, f in enumerate(fr)}; OV["head"] = {f: (hd[i] + 0.5 * sp[i],) for i, f in enumerate(fr)}
     return OV
+
+def sub3(a, b): return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
+def norm(v):
+    l = math.sqrt(v[0] ** 2 + v[1] ** 2 + v[2] ** 2) or 1.0; return (v[0] / l, v[1] / l, v[2] / l)
+def rz(v, deg):      # turn inside the card plane (CCW seen from the camera)
+    c, s_ = math.cos(math.radians(deg)), math.sin(math.radians(deg)); return (v[0] * c - v[2] * s_, v[1], v[0] * s_ + v[2] * c)
+def rx(v, deg):      # tip toward the camera
+    c, s_ = math.cos(math.radians(deg)), math.sin(math.radians(deg)); return (v[0], v[1] * c - v[2] * s_, v[1] * s_ + v[2] * c)
+def tp(v):           # direction -> (in-plane angle from straight down, pitch toward camera), the bone's Euler (X then Z)
+    v = norm(v); return math.degrees(math.atan2(v[0], -v[2])), math.degrees(math.asin(max(-1.0, min(1.0, v[1]))))
+def ik3(a, t, l1, l2, pole):
+    """two-bone IK in 3D: the joint bends toward 'pole' (a direction)."""
+    d = sub3(t, a); D = math.sqrt(sum(c * c for c in d)); D = max(min(D, (l1 + l2) * 0.999), abs(l1 - l2) + 1e-4); n = norm(d)
+    pd = sum(pole[i] * n[i] for i in range(3)); p = norm(tuple(pole[i] - pd * n[i] for i in range(3)))
+    if abs(sum(c * c for c in p) - 1) > 0.5: p = (0.0, 0.0, 1.0)
+    ca = (l1 * l1 + D * D - l2 * l2) / (2 * l1 * D); al = math.acos(max(-1.0, min(1.0, ca)))
+    E = tuple(a[i] + l1 * (math.cos(al) * n[i] + math.sin(al) * p[i]) for i in range(3)); W = tuple(a[i] + D * n[i] for i in range(3))
+    return E, W
 
 class Anim:
     """Keys per control; bake() solves IK every frame and writes bone rotations.
     hand/foot targets: ('hand.R', f, x, z). angles in degrees CCW: spine, head, hand.L/R (relative to forearm). hips: bounce (up)."""
-    def __init__(self, rig): self.r = rig; self.t = {}
+    def __init__(self, rig, fwd=None):
+        self.r = rig; self.t = {}
+        self.fwd = fwd or (lambda f: (0.0, 1.0))   # body forward in card coords; (0, 1) = facing the camera
     def tr(self, n): return self.t.setdefault(n, Track())
     def key(self, n, f, *v): self.tr(n).add(f, *v); return self
     def bake(self, f0, f1, bend=None):
@@ -252,12 +285,49 @@ class Anim:
                     prev = t.k[i - 1][1][0]; v = t.k[i][1][0]
                     v = prev + ((v - prev + 180) % 360 - 180); t.k[i] = (t.k[i][0], (v,) + tuple(t.k[i][1][1:]))
         last = {}
-        def rot(b, deg, f):
+        pax = {b.name: _pitch_axis(arm, b.name) for b in arm.data.bones}
+        def rot(b, deg, f, pitch=0.0):
             if b in last: deg = last[b] + ((deg - last[b] + 180) % 360 - 180)      # never jump a full turn between frames
             last[b] = deg
             pb = arm.pose.bones[b]; i, sg = _bone_axis(arm, b); v = [0.0, 0.0, 0.0]; v[i] = math.radians(deg) * sg * sgn[b] * (1 if sg > 0 else -1)
+            if pitch: j, sj = pax[b]; v[j] = -math.radians(pitch) * sj         # + = toward the camera
             pb.rotation_euler = v; pb.keyframe_insert("rotation_euler", frame=f)
         def ang(v): return math.degrees(math.atan2(v[1], v[0]))
+        # ---- tube orientation: every limb card turns around its own length so its face points at the camera as much as it can
+        #      (a flat cut-out seen edge-on becomes a sliver; this keeps forearms/shins readable at any pitch, any camera)
+        from mathutils import Matrix, Vector as _V, Quaternion as _Q
+        C_ = _V((0.0, -1.0, 0.0))                     # armature -Y looks at the camera (Locked Track) ...
+        CAMD = {}                                     # ... but the camera also sits higher/lower: use the real direction per frame
+        if TUBE:
+            sc_ = bpy.context.scene; cam_ = sc_.camera; chest = _V((0.0, 0.0, z["sh"]))
+            for f_ in range(f0, f1 + 1):
+                sc_.frame_set(f_); mw = arm.matrix_world
+                CAMD[f_] = (mw.inverted().to_3x3() @ (cam_.matrix_world.translation - mw @ chest)).normalized()
+        R0 = {b.name: b.matrix_local.to_3x3() for b in arm.data.bones}
+        def nrest(bn):                                # rest-pose card normal expressed in the bone's local frame
+            return (R0[bn].inverted() @ C_).normalized()
+        NR = {bn: nrest(bn) for bn in R0}
+        PR = {}                                       # posed armature-space rotation of each bone this frame
+        def card2arm(v): return _V((v[0], -v[1], v[2]))
+        def orient(bn, d_card, f):
+            Cf = CAMD.get(f, C_); D = card2arm(d_card).normalized(); N = Cf - D * Cf.dot(D)
+            if N.length < 0.2:                       # pointing (almost) straight at the camera: keep last frame's face
+                Np = last.get("N" + bn, Cf); N2 = Np - D * Np.dot(D); N = N2 if N2.length > 1e-4 else N
+            N.normalize(); last["N" + bn] = N.copy()
+            Yr = (R0[bn] @ _V((0, 1, 0))); Nr = (R0[bn] @ NR[bn]).normalized()
+            A = Matrix((Yr, Nr, Yr.cross(Nr))).transposed(); B = Matrix((D, N, D.cross(N))).transposed()
+            Rarm = B @ A.inverted()                   # rest -> posed, armature space
+            P = Rarm @ R0[bn]; PR[bn] = P
+            par = arm.data.bones[bn].parent
+            if par is not None:
+                pP = PR.get(par.name) or (R0[par.name] @ arm.pose.bones[par.name].rotation_euler.to_matrix())
+                basis = (R0[par.name].inverted() @ R0[bn]).inverted() @ pP.inverted() @ P
+            else: basis = R0[bn].inverted() @ P
+            q = basis.to_quaternion()
+            qp = last.get("q" + bn)
+            if qp is not None and qp.dot(q) < 0: q.negate()
+            last["q" + bn] = q.copy()
+            pb = arm.pose.bones[bn]; pb.rotation_mode = "QUATERNION"; pb.rotation_quaternion = q; pb.keyframe_insert("rotation_quaternion", frame=f)
         def ik2(a, t, l1, l2, side):
             dx, dz = t[0] - a[0], t[1] - a[1]; D = max(min(math.hypot(dx, dz), (l1 + l2) * 0.999), abs(l1 - l2) + 1e-4)
             base = math.atan2(dz, dx); c = (l1 * l1 + D * D - l2 * l2) / (2 * l1 * D); off = math.acos(max(-1, min(1, c)))
@@ -270,26 +340,60 @@ class Anim:
         for f in range(f0, f1 + 1):
             bo = self.tr("hips").at(f)[0] if "hips" in self.t else 0.0
             hb = arm.pose.bones["hips"]; hb.location = (0, bo, 0); hb.keyframe_insert("location", frame=f)
-            sp = at("spine", f)[0] if "spine" in self.t or "spine" in OV else 0.0; rot("spine", sp, f)
+            sp = at("spine", f)[0] if "spine" in self.t or "spine" in OV else 0.0; rot("spine", sp, f); PR.clear(); PR["spine"] = R0["spine"] @ arm.pose.bones["spine"].rotation_euler.to_matrix(); PR["hips"] = R0["hips"]
             hd = at("head", f)[0] if "head" in self.t or "head" in OV else 0.0; rot("head", hd, f)
             hip = (0.0, z["hip"] + bo); spr = math.radians(sp)
             def spin(p): x, y = p[0] - hip[0], p[1] - hip[1]; return (hip[0] + x * math.cos(spr) - y * math.sin(spr), hip[1] + x * math.sin(spr) + y * math.cos(spr))
             for sd, s in (("L", -1), ("R", 1)):
-                # arm: shoulder moves with the spine
-                if f"hand.{sd}" in self.t:
-                    sh = spin((s * S["shW"], z["sh"] - 0.02 + bo)); tx, tz = at(f"hand.{sd}", f)
-                    side = bend.get(f"arm.{sd}", -s)                     # elbow bends outward by default
-                    e, w = ik2(sh, (tx, tz), S["up"], S["fo"], side)
-                    a_up = ang((e[0] - sh[0], e[1] - sh[1])) + 90; a_fo = ang((w[0] - e[0], w[1] - e[1])) + 90     # 0 = hanging straight down
-                    rot(f"upper.{sd}", a_up - sp, f); rot(f"fore.{sd}", a_fo - a_up, f)
-                if f"fingers.{sd}" in self.t and f"hand.{sd}" in self.t:      # world direction the fingers point (deg CCW from +x)
-                    phi = a_fo - 90; rel = at(f"fingers.{sd}", f)[0] - phi
-                    pr = last.get("rel" + sd, (rel + 180) % 360 - 180); rel = pr + ((rel - pr + 180) % 360 - 180); last["rel" + sd] = rel
-                    rel = ((rel + 180) % 360 - 180) if abs(rel) > 540 else rel
-                    rot(f"hand.{sd}", max(-70.0, min(70.0, rel)), f)                  # a wrist bends, it doesn't spin
-                elif f"handrot.{sd}" in self.t: rot(f"hand.{sd}", self.tr(f"handrot.{sd}").at(f)[0], f)
-                if f"foot.{sd}" in self.t:
-                    hp = (s * S["hipW"], z["hip"] + bo); tx, tz = self.tr(f"foot.{sd}").at(f)
-                    e, w = ik2(hp, (tx, tz), S["th"], S["sn"], bend.get(f"leg.{sd}", s))
-                    a_th = ang((e[0] - hp[0], e[1] - hp[1])) + 90; a_sn = ang((w[0] - e[0], w[1] - e[1])) + 90
-                    rot(f"thigh.{sd}", a_th, f); rot(f"shin.{sd}", a_sn - a_th, f)
+                fwd = self.fwd(f)                                        # body forward in card coords (x, d=toward camera)
+                side3 = (fwd[1], -fwd[0])                               # body 'screen-right' axis in card coords
+                def body(p3):  # body space (side, forward, up) -> card space (x, depth toward camera, z)
+                    return (p3[0] * side3[0] + p3[1] * fwd[0], p3[0] * side3[1] + p3[1] * fwd[1], p3[2])
+                # ---- arm
+                has2, has3 = f"hand.{sd}" in self.t, f"hand3.{sd}" in self.t
+                if has2 or has3:
+                    shx, shz = spin((s * S["shW"], z["sh"] - 0.02 + bo)); S3 = (shx, 0.0, shz)
+                    # the shoulder where the spine bone REALLY puts it (spin() could disagree with the bone's sign convention)
+                    Pr = PR["spine"] @ R0["spine"].inverted(); hd0 = _V((0.0, 0.0, z["hip"]))
+                    sa = _V((0.0, 0.0, z["hip"] + bo)) + Pr @ (_V((s * S["shW"], 0.0, z["sh"] - 0.02)) - hd0); S3 = (sa.x, -sa.y, sa.z)
+                    w3 = (at(f"w3.{sd}", f)[0] if (f"w3.{sd}" in self.t or f"w3.{sd}" in OV) else 1.0) if has3 else 0.0
+                    T2 = at(f"hand.{sd}", f) if has2 else (s * 0.22, 0.6)
+                    T = (T2[0], 0.0, T2[1]); side2 = bend.get(f"arm.{sd}", -s)
+                    pole = (s * (1.0 if side2 * -s > 0 else -1.0), 0.0, -0.25)
+                    if has3:
+                        b3 = at(f"hand3.{sd}", f); c3 = body(b3); T3 = (c3[0], c3[1], c3[2])
+                        T = tuple(T[i] + (T3[i] - T[i]) * w3 for i in range(3))
+                        back = body((0.0, -1.0, 0.0)); pole = tuple(pole[i] * (1 - w3) + (s * 0.6, back[1] * 0.8, -0.2)[i] * w3 for i in range(3))
+                    E, W = ik3(S3, T, S["up"], S["fo"], pole)
+                    du = norm(sub3(E, S3)); dfo = norm(sub3(W, E))
+                    if os.environ.get("DBGW"): _DBG.setdefault(arm.name, {})[f"{sd}{f}"] = W
+                    tu, pu = tp(rz(du, -sp)); tf, pf = tp(rx(rz(rz(dfo, -sp), -tu), -pu))
+                    if TUBE: orient(f"upper.{sd}", du, f); orient(f"fore.{sd}", dfo, f)
+                    else: rot(f"upper.{sd}", tu, f, pu); rot(f"fore.{sd}", tf, f, pf)
+                    a_fo = math.degrees(math.atan2(dfo[2], dfo[0])) + 90
+                    flat = math.hypot(dfo[0], dfo[2])                    # how much of the forearm lies in the card plane
+                    if f"fingers.{sd}" in self.t:
+                        fg = at(f"fingers.{sd}", f)[0]
+                        if flat > 0.6:                                   # a wrist bends, it doesn't spin: clamp what the camera sees
+                            fa = a_fo - 90; rl = (fg - fa + 180) % 360 - 180
+                            pr = last.get("vis" + sd, rl); rl = pr + ((rl - pr + 180) % 360 - 180); last["vis" + sd] = rl
+                            fg = fa + max(-62.0, min(62.0, rl))
+                        hd = (math.cos(math.radians(fg)), 0.0, math.sin(math.radians(fg)))   # hands face the camera: no depth
+                        th, ph = tp(rx(rz(rx(rz(rz(hd, -sp), -tu), -pu), -tf), -pf))
+                        pr = last.get("rel" + sd, th); th = pr + ((th - pr + 180) % 360 - 180); last["rel" + sd] = th
+                        lim = 180.0
+                        if TUBE: orient(f"hand.{sd}", hd, f)
+                        else: rot(f"hand.{sd}", max(-lim, min(lim, th)), f, ph)
+                    elif f"handrot.{sd}" in self.t: rot(f"hand.{sd}", self.tr(f"handrot.{sd}").at(f)[0], f)
+                # ---- leg
+                has2, has3 = f"foot.{sd}" in self.t, f"foot3.{sd}" in self.t
+                if has2 or has3:
+                    H3 = (s * S["hipW"], 0.0, z["hip"] + bo)
+                    if has3: c3 = body(at(f"foot3.{sd}", f)); T = (c3[0], c3[1], c3[2])
+                    else: t2 = self.tr(f"foot.{sd}").at(f); T = (t2[0], 0.0, t2[1])
+                    kf = body((0.0, 1.0, 0.0)); pole = (kf[0] + s * 0.25, kf[1], 0.0) if has3 else (s * (1 if bend.get(f"leg.{sd}", s) * s > 0 else -1), 0.0, 0.0)
+                    E, W = ik3(H3, T, S["th"], S["sn"], pole)
+                    dt = norm(sub3(E, H3)); ds = norm(sub3(W, E))
+                    tt, pt = tp(dt); ts, ps = tp(rx(rz(ds, -tt), -pt))
+                    if TUBE: orient(f"thigh.{sd}", dt, f); orient(f"shin.{sd}", ds, f)
+                    else: rot(f"thigh.{sd}", tt, f, pt); rot(f"shin.{sd}", ts, f, ps)

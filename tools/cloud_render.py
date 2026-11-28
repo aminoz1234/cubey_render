@@ -28,6 +28,12 @@ for m in bpy.data.materials:                                  # cheaper skin/tis
             if n.type == "BSDF_PRINCIPLED" and hasattr(n, "subsurface_method"):
                 n.subsurface_method = "BURLEY"
 c.transparent_max_bounces = max(8, c.transparent_max_bounces)
+if job.get("strip"):                                          # quick test: hide scenery (trees, bushes, buildings...) and motion blur
+    pre = tuple(job["strip"]) if isinstance(job["strip"], list) else ("tree", "bush", "building", "streetlight", "bench")
+    for o in bpy.data.objects:
+        if o.get("kit") in ("trees", "bushes") or o.name.startswith(pre) or (o.parent and o.parent.name.startswith(pre)):
+            o.hide_render = True
+    s.render.use_motion_blur = False
 s.render.use_persistent_data = True
 s.render.threads_mode = "AUTO"
 s.render.image_settings.file_format = "PNG"

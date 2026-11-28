@@ -39,85 +39,7 @@ def amp(V, t, inplace=None):
     a = min(1.0, vprof(V, t) / VR)
     if inplace and inplace[0] <= t <= inplace[1]: a = max(a, 0.6)
     return a
-def build_anim(r, V, gest, kinds, inplace=None, hold=None, seed=1):
-    a_ = rig2.Anim(r); z = r["z"]; Sk = r["S"]; ph = seed * 1.3
-    for f in range(1, NFR + 1):
-        t = (f - 1) / FPS; A = amp(V, t, inplace); ph += 2 * math.pi * (2.0 + 0.8 * A) / FPS * (1 if A > 0.02 else 0)
-        sL, sR = math.sin(ph), math.sin(ph + math.pi)
-        a_.key("foot.L", f, -Sk["hipW"] * 0.95, z["ank"] + 0.15 * A * max(0, sL)); a_.key("foot.R", f, Sk["hipW"] * 0.95, z["ank"] + 0.15 * A * max(0, sR))
-        a_.key("hips", f, 0.035 * A * abs(math.cos(ph))); a_.key("spine", f, 3.5 * A * math.sin(ph)); a_.key("head", f, -2.5 * A * math.sin(ph))
-        for sd, s_, sw in (("L", -1, sL), ("R", 1, sR)):
-            k_ = 0.35 if (hold and hold[0] == sd and t < hold[1]) else 1.0
-            base = (s_ * (0.2 + 0.02 * sw), 0.8 + 0.13 * A * sw * k_, -90 + s_ * 25 if True else 0)
-            if A < 0.02: base = (s_ * 0.22, 0.6, -90)
-            x, zz, fg = base
-            for (g0, g1, gs, gx, gz, gf) in gest:
-                if gs != sd: continue
-                w_ = (1.0 if g0 <= 0 else sstep((t - g0) / 0.25)) * (1 - sstep((t - g1) / 0.3))
-                if w_ > 0:
-                    x, zz = x + (gx - x) * w_, zz + (gz - zz) * w_
-                    vx = math.cos(R(fg)) * (1 - w_) + math.cos(R(gf)) * w_; vz = math.sin(R(fg)) * (1 - w_) + math.sin(R(gf)) * w_
-                    fg = math.degrees(math.atan2(vz, vx))
-            a_.key(f"hand.{sd}", f, x, zz); a_.key(f"fingers.{sd}", f, fg)
-    a_.bake(1, NFR, bend={"arm.L": -1, "arm.R": 1})
-    for sd, ks in kinds.items():
-        for t, k in ks: rig2.set_hand(r, sd, k, max(1, F(t)))
-    return a_
-
-# ---- Nora: stretching by the bench, roasting, phone, jog in place, sprint
-GN = [
-    (0.0, Le[0] + 0.1, "L", -0.62, 0.98, 180),                                           # "a whole smoothie to a run?" points at the cup
-    (Lt[2], Le[2] + 0.1, "L", -0.5, 1.02, 165),                                           # "You look like one too."
-    (Lt[4], Lt[4] + 0.8, "R", 0.45, 1.15, 60),                                            # "Fruit, my ass" brush-off
-    (Lt[4] + 0.85, Le[5] + 0.45, "R", 0.33, 1.12, 90),                                     # phone up
-    (Le[5] + 0.15, wt("nora", "rest.") + 0.3, "R", 0.42, 1.05, 60),                       # explaining (takes over straight from the phone)
-    (wt("nora", "balloon") - 0.35, Le[6] + 0.2, "L", -0.62, 0.76, 190),                   # "That's your [bleep] balloon" points at her belly
-    (T_STOP + 0.9, T_RE, "L", -0.25, 0.66, -100), (T_STOP + 0.9, T_RE, "R", 0.25, 0.66, -80),
-    (Lt[10], Lt[10] + 0.6, "L", -0.35, 1.25, 120),                                        # "Deal." flick
-]
-KN = {"L": [(0, "point"), (Le[0] + 0.25, "fist"), (Lt[2], "open"), (Le[2] + 0.2, "fist"),
-            (wt("nora", "balloon") - 0.35, "point"), (Le[6] + 0.4, "fist"), (Lt[10], "wave"), (Lt[10] + 0.7, "fist")],
-      "R": [(0, "fist"), (Lt[4], "wave"), (Lt[4] + 0.85, "palm"), (Le[5] + 0.5, "open"), (wt("nora", "rest.") + 0.5, "fist")]}
-na = build_anim(nora, VN, GN, KN, inplace=(T_STOP + 1.9, T_RE), seed=1)
-
-# ---- Jess: runs in with the smoothie, sips, defends it, stops dead, dumps it
-CUP_UP = 0                     # right hand: fingers pointing +x keeps the cup upright
-GJ = [
-    (0.0, Le[0] + 0.1, "R", 0.25, 1.27, 30),                                             # sipping while she gets called out
-    (Lt[1], Le[1] + 0.2, "L", -0.08, 0.8, -60),                                          # hand on belly: "I feel like a balloon"
-    (Lt[3], Le[3] + 0.2, "R", 0.38, 1.18, CUP_UP),                                       # "Mango. It's fruit." holds it up
-    (Le[3] + 0.2, Lt[6], "R", 0.42, 1.0, CUP_UP),                                        # cup out where Nora can snap it
-    (T_STOP, Lt[8], "L", -0.06, 0.78, -40), (T_STOP, Lt[8], "R", 0.3, 0.78, CUP_UP),     # stops dead, hand on belly
-    (Lt[8], Le[8], "R", 0.3, 1.18, CUP_UP), (Lt[8], Le[8], "L", -0.06, 0.78, -40),       # stares at the cup: "with a straw"
-    (Le[8], T_RE - 0.15, "R", 0.32, 0.85, CUP_UP),
-    (T_RE - 0.75, T_RE + 0.05, "R", 0.32, 1.3, 60),                                     # swings it across into the bin
-]
-KJ = {"L": [(0, "fist"), (Lt[1], "open"), (Le[1] + 0.4, "fist"), (T_STOP, "open"), (Le[8] + 0.2, "fist")],
-      "R": [(0, "grip"), (T_RE + 0.05, "open"), (T_RE + 0.6, "fist")]}
-ja = build_anim(jess, VJ, GJ, KJ, hold=("R", T_RE), seed=2)
-
-# ------------------------------------------------------------ props in hands
-cup = smoothie_cup("smoothie_cup")
-holders(cup, [(jess, "R", 90, 0, T_RE)])
-ph_n, scr_n = phone("phone_nora")
-holders(ph_n, [(nora, "R", 0, Lt[4] + 0.85, Le[5] + 0.6)]); pop(ph_n, Lt[4] + 0.85, Le[5] + 0.45)
-# the toss: from the hand on the release frame, an arc into the bin
-BIN_X, BIN_Y = -2.05, JSTOP_Y - 0.35
-for o in [o for o in bpy.data.objects if o.name.startswith("bush")] + [o for o in bpy.data.objects if o.parent and o.parent.name.startswith("bush")]:
-    root = o if o.parent is None else o.parent
-    if abs(root.location.y - BIN_Y) < 1.3 and root.location.x < 0: root.location.y += 2.6
-bin_("bin", BIN_X, BIN_Y)
-fr = F(T_RE); S.frame_set(fr); bpy.context.view_layer.update(); p0 = cup.matrix_world.translation.copy()
-key(cup, "location", Vector((0, 0, 0)), 1); key(cup, "location", Vector((0, 0, 0)), fr)
-top = Vector((BIN_X, BIN_Y, 1.25)); inside = Vector((BIN_X, BIN_Y, 0.82))
-for i in range(1, 15):
-    u = i / 14; p = p0.lerp(top, u); p.z += 0.45 * math.sin(math.pi * u); key(cup, "location", p, fr + i)
-key(cup, "location", inside, fr + 18); key(cup, "rotation_euler", Euler((0, 0, 0)), fr); key(cup, "rotation_euler", Euler((R(80), R(30), 0)), fr + 14); key(cup, "rotation_euler", Euler((R(100), R(40), 0)), fr + 18)
-for fc in rig2.all_fcurves(cup.animation_data.action):
-    if fc.data_path == "location":
-        for kp in fc.keyframe_points:
-            if int(kp.co[0]) == fr: kp.interpolation = "CONSTANT"
-
+CAMP = {}
 # ------------------------------------------------------------ camera: leads the runners, then Nora's POV with the phone, then back
 # one continuous camera, new framing every 2.5-3.5 s (Ricks Clips), blended 0.35 s between beats
 T0, T1 = wt("nora", "snap") - 0.45, Le[5] + 0.15
@@ -170,7 +92,98 @@ for f in range(1, NFR + 1):
         if T0 - 0.4 <= t < T0:      # whip into her eyes from the side (she is already hidden)
             u = sstep((t - (T0 - 0.4)) / 0.4); ec, et = pov(F(T0)); cp = cp.lerp(ec, u); tp = tp.lerp(et, u)
         A = max(amp(VN, t), amp(VJ, t)); bob = 0.015 * A * math.sin(2 * math.pi * 2.6 * t); cp = cp + Vector((0, 0, bob))
-    key(cam, "location", cp, f); key(tgt, "location", tp, f)
+    key(cam, "location", cp, f); key(tgt, "location", tp, f); CAMP[f] = cp
+
+
+def fwd_fn(xs, ys):
+    def fwd(f):
+        c = CAMP.get(f) or CAMP[min(CAMP, key=lambda k: abs(k - f))]; tx, ty = c.x - xs(f), c.y - ys(f); l = math.hypot(tx, ty) or 1; tx, ty = tx / l, ty / l
+        hx, hy = 0.0, -1.0
+        return (hx * (-ty) + hy * tx, hx * tx + hy * ty)
+    return fwd
+def build_anim(r, V, gest, kinds, inplace=None, hold=None, seed=1, fwd=None):
+    a_ = rig2.Anim(r, fwd); z = r["z"]; Sk = r["S"]; ph = seed * 1.3
+    for f in range(1, NFR + 1):
+        t = (f - 1) / FPS; A = amp(V, t, inplace); ph += 2 * math.pi * (2.0 + 0.8 * A) / FPS * (1 if A > 0.02 else 0)
+        sL, sR = math.sin(ph), math.sin(ph + math.pi)
+        for sd_, s__, sw_ in (("L", -1, sL), ("R", 1, sR)):     # feet in body space: forward/back + lift, the rig turns that into what this camera sees
+            a_.key(f"foot3.{sd_}", f, s__ * Sk["hipW"] * 0.95, 0.17 * A * sw_, z["ank"] + 0.1 * A * max(0.0, sw_))
+        a_.key("hips", f, 0.035 * A * abs(math.cos(ph))); a_.key("spine", f, 3.5 * A * math.sin(ph)); a_.key("head", f, -2.5 * A * math.sin(ph))
+        for sd, s_, sw in (("L", -1, sR), ("R", 1, sL)):        # each arm swings with the opposite leg
+            k_ = 0.35 if (hold and hold[0] == sd and t < hold[1]) else 1.0
+            base = (s_ * 0.24, 0.74 + 0.03 * A * sw, -90 + s_ * 10)
+            if A < 0.02: base = (s_ * 0.22, 0.6, -90)
+            x, zz, fg = base; wmax = 0.0
+            for (g0, g1, gs, gx, gz, gf) in gest:
+                if gs != sd: continue
+                w_ = (1.0 if g0 <= 0 else sstep((t - g0) / 0.25)) * (1 - sstep((t - g1) / 0.3))
+                if w_ > 0:
+                    wmax = max(wmax, w_)
+                    x, zz = x + (gx - x) * w_, zz + (gz - zz) * w_
+                    vx = math.cos(R(fg)) * (1 - w_) + math.cos(R(gf)) * w_; vz = math.sin(R(fg)) * (1 - w_) + math.sin(R(gf)) * w_
+                    fg = math.degrees(math.atan2(vz, vx))
+            a_.key(f"hand.{sd}", f, x, zz); a_.key(f"fingers.{sd}", f, fg)
+            run = (1 - wmax) * min(1.0, 3 * A) * (k_ if k_ < 1 else 1.0)
+            a_.key(f"hand3.{sd}", f, s_ * 0.2, 0.2 * sw, 0.86 + 0.06 * sw); a_.key(f"w3.{sd}", f, run)   # arm pumps forward/back in the body's own space
+    a_.bake(1, NFR, bend={"arm.L": -1, "arm.R": 1})
+    for sd, ks in kinds.items():
+        for t, k in ks: rig2.set_hand(r, sd, k, max(1, F(t)))
+    return a_
+
+# ---- Nora: stretching by the bench, roasting, phone, jog in place, sprint
+GN = [
+    (0.0, Le[0] + 0.1, "L", -0.62, 0.98, 180),                                           # "a whole smoothie to a run?" points at the cup
+    (Lt[2], Le[2] + 0.1, "L", -0.5, 1.02, 165),                                           # "You look like one too."
+    (Lt[4], Lt[4] + 0.8, "R", 0.45, 1.15, 60),                                            # "Fruit, my ass" brush-off
+    (Lt[4] + 0.85, Le[5] + 0.45, "R", 0.33, 1.12, 90),                                     # phone up
+    (Le[5] + 0.15, wt("nora", "rest.") + 0.3, "R", 0.42, 1.05, 60),                       # explaining (takes over straight from the phone)
+    (wt("nora", "balloon") - 0.35, Le[6] + 0.2, "L", -0.62, 0.76, 190),                   # "That's your [bleep] balloon" points at her belly
+    (T_STOP + 0.9, T_RE, "L", -0.25, 0.66, -100), (T_STOP + 0.9, T_RE, "R", 0.25, 0.66, -80),
+    (Lt[10], Lt[10] + 0.6, "L", -0.35, 1.25, 120),                                        # "Deal." flick
+]
+KN = {"L": [(0, "point"), (Le[0] + 0.25, "fist"), (Lt[2], "open"), (Le[2] + 0.2, "fist"),
+            (wt("nora", "balloon") - 0.35, "point"), (Le[6] + 0.4, "fist"), (Lt[10], "wave"), (Lt[10] + 0.7, "fist")],
+      "R": [(0, "fist"), (Lt[4], "wave"), (Lt[4] + 0.85, "palm"), (Le[5] + 0.5, "open"), (wt("nora", "rest.") + 0.5, "fist")]}
+na = build_anim(nora, VN, GN, KN, inplace=(T_STOP + 1.9, T_RE), seed=1, fwd=fwd_fn(lambda f: XN[f - 1], lambda f: YN[f - 1]))
+
+# ---- Jess: runs in with the smoothie, sips, defends it, stops dead, dumps it
+CUP_UP = 0                     # right hand: fingers pointing +x keeps the cup upright
+GJ = [
+    (0.0, Le[0] + 0.1, "R", 0.25, 1.27, 30),                                             # sipping while she gets called out
+    (Lt[1], Le[1] + 0.2, "L", -0.08, 0.8, -60),                                          # hand on belly: "I feel like a balloon"
+    (Lt[3], Le[3] + 0.2, "R", 0.38, 1.18, CUP_UP),                                       # "Mango. It's fruit." holds it up
+    (Le[3] + 0.2, Lt[6], "R", 0.42, 1.0, CUP_UP),                                        # cup out where Nora can snap it
+    (T_STOP, Lt[8], "L", -0.06, 0.78, -40), (T_STOP, Lt[8], "R", 0.3, 0.78, CUP_UP),     # stops dead, hand on belly
+    (Lt[8], Le[8], "R", 0.3, 1.18, CUP_UP), (Lt[8], Le[8], "L", -0.06, 0.78, -40),       # stares at the cup: "with a straw"
+    (Le[8], T_RE - 0.15, "R", 0.32, 0.85, CUP_UP),
+    (T_RE - 0.75, T_RE + 0.05, "R", 0.32, 1.3, 60),                                     # swings it across into the bin
+]
+KJ = {"L": [(0, "fist"), (Lt[1], "open"), (Le[1] + 0.4, "fist"), (T_STOP, "open"), (Le[8] + 0.2, "fist")],
+      "R": [(0, "grip"), (T_RE + 0.05, "open"), (T_RE + 0.6, "fist")]}
+ja = build_anim(jess, VJ, GJ, KJ, hold=("R", T_RE), seed=2, fwd=fwd_fn(lambda f: -0.55, lambda f: YJ[f - 1]))
+
+# ------------------------------------------------------------ props in hands
+cup = smoothie_cup("smoothie_cup")
+holders(cup, [(jess, "R", 90, 0, T_RE)])
+ph_n, scr_n = phone("phone_nora")
+holders(ph_n, [(nora, "R", 0, Lt[4] + 0.85, Le[5] + 0.6)]); pop(ph_n, Lt[4] + 0.85, Le[5] + 0.45)
+# the toss: from the hand on the release frame, an arc into the bin
+BIN_X, BIN_Y = -2.05, JSTOP_Y - 0.35
+for o in [o for o in bpy.data.objects if o.name.startswith("bush")] + [o for o in bpy.data.objects if o.parent and o.parent.name.startswith("bush")]:
+    root = o if o.parent is None else o.parent
+    if abs(root.location.y - BIN_Y) < 1.3 and root.location.x < 0: root.location.y += 2.6
+bin_("bin", BIN_X, BIN_Y)
+fr = F(T_RE); S.frame_set(fr); bpy.context.view_layer.update(); p0 = cup.matrix_world.translation.copy()
+key(cup, "location", Vector((0, 0, 0)), 1); key(cup, "location", Vector((0, 0, 0)), fr)
+top = Vector((BIN_X, BIN_Y, 1.25)); inside = Vector((BIN_X, BIN_Y, 0.82))
+for i in range(1, 15):
+    u = i / 14; p = p0.lerp(top, u); p.z += 0.45 * math.sin(math.pi * u); key(cup, "location", p, fr + i)
+key(cup, "location", inside, fr + 18); key(cup, "rotation_euler", Euler((0, 0, 0)), fr); key(cup, "rotation_euler", Euler((R(80), R(30), 0)), fr + 14); key(cup, "rotation_euler", Euler((R(100), R(40), 0)), fr + 18)
+for fc in rig2.all_fcurves(cup.animation_data.action):
+    if fc.data_path == "location":
+        for kp in fc.keyframe_points:
+            if int(kp.co[0]) == fr: kp.interpolation = "CONSTANT"
+
 # the 'focus' empty doubles as the look target; in POV it sits on the phone (0.30 m), so the cup and Jess go soft
 
 # hide Nora while we are inside her head; show the POV hand + phone
