@@ -9,6 +9,7 @@ U = 1000.0
 SKEL = {
     "mom": dict(hip=0.62, sh=1.1, neck=1.15, shW=0.165, hipW=0.07, up=0.25, fo=0.235, th=0.31, sn=0.29, hand=1.0, ank=0.05, headR=0.36),
     "son": dict(hip=0.5, sh=0.9, neck=0.95, shW=0.14, hipW=0.07, up=0.21, fo=0.195, th=0.25, sn=0.235, hand=0.9, ank=0.045, headR=0.34),
+    "grandpa": dict(hip=0.62, sh=1.1, neck=1.15, shW=0.17, hipW=0.075, up=0.25, fo=0.235, th=0.31, sn=0.29, hand=1.0, ank=0.05, headR=0.35),
 }
 HANDS = ["open", "fist", "point", "gripBack", "gripFront", "wave"]
 EMPTY_CELL = 7          # past the end of the atlas = transparent (CLIP extension)
@@ -124,7 +125,7 @@ def build(who, loc, art_dir, head_dir, head_meta, cam, scale=1.3, frames=150):
 def set_hand(rig, sd, kind, frame):
     """Swap the hand drawing (constant keys). grip = palm behind + fingers in front."""
     n = rig["n"]; P = rig["parts"]
-    back = HANDS.index("gripBack") if kind == "grip" else HANDS.index(kind)
+    back = HANDS.index("gripBack") if kind == "grip" else HANDS.index("open") if kind == "palm" else HANDS.index(kind)
     front = HANDS.index("gripFront") if kind == "grip" else EMPTY_CELL
     for lay, cell in (("back", back), ("front", front)):
         mp = P[f"hand{lay}.{sd}"].data.materials[0].node_tree.nodes["cell"]
