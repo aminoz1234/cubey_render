@@ -14,6 +14,16 @@ SKEL = {
 HANDS = ["open", "fist", "point", "gripBack", "gripFront", "wave"]
 EMPTY_CELL = 7          # past the end of the atlas = transparent (CLIP extension)
 
+def all_fcurves(action):
+    """every F-curve of an action, Blender 4 (action.fcurves) and 5 (layers > strips > channelbags)"""
+    if action is None: return []
+    if hasattr(action, "fcurves"): return list(action.fcurves)
+    out = []
+    for ly in getattr(action, "layers", []):
+        for st in ly.strips:
+            for cb in getattr(st, "channelbags", []): out += list(cb.fcurves)
+    return out
+
 def _mat(name, img_path, seq=False, frames=150, atlas=None):
     m = bpy.data.materials.new(name); m.use_nodes = True; nt = m.node_tree; b = nt.nodes["Principled BSDF"]
     tex = nt.nodes.new("ShaderNodeTexImage"); img = bpy.data.images.load(img_path); tex.image = img; tex.interpolation = "Cubic"; tex.extension = "CLIP"
@@ -132,7 +142,7 @@ def set_hand(rig, sd, kind, frame):
         mp.inputs["Location"].default_value[0] = cell / n
         mp.inputs["Location"].keyframe_insert("default_value", index=0, frame=frame)
         fc = P[f"hand{lay}.{sd}"].data.materials[0].node_tree.animation_data.action
-        for c in (fc.fcurves if hasattr(fc, "fcurves") else []):
+        for c in all_fcurves(fc):
             for k in c.keyframe_points: k.interpolation = "CONSTANT"
 
 def rotate_bone(rig, bname, deg, frame):   # (kept for one-off keys)
@@ -180,7 +190,16 @@ class Anim:
     def bake(self, f0, f1, bend=None):
         r = self.r; arm = r["arm"]; S = r["S"]; z = r["z"]; bend = bend or {}
         sgn = {b.name: _ccw_sign(arm, b.name) for b in arm.data.bones}
+        # angle keys take the short way round (a -90 -> 200 key is a 70 degree turn, not 290)
+        for n, t in self.t.items():
+            if n.startswith("fingers") or n.startswith("handrot") or n in ("spine", "head"):
+                for i in range(1, len(t.k)):
+                    prev = t.k[i - 1][1][0]; v = t.k[i][1][0]
+                    v = prev + ((v - prev + 180) % 360 - 180); t.k[i] = (t.k[i][0], (v,) + tuple(t.k[i][1][1:]))
+        last = {}
         def rot(b, deg, f):
+            if b in last: deg = last[b] + ((deg - last[b] + 180) % 360 - 180)      # never jump a full turn between frames
+            last[b] = deg
             pb = arm.pose.bones[b]; i, sg = _bone_axis(arm, b); v = [0.0, 0.0, 0.0]; v[i] = math.radians(deg) * sg * sgn[b] * (1 if sg > 0 else -1)
             pb.rotation_euler = v; pb.keyframe_insert("rotation_euler", frame=f)
         def ang(v): return math.degrees(math.atan2(v[1], v[0]))
@@ -204,7 +223,10 @@ class Anim:
                     a_up = ang((e[0] - sh[0], e[1] - sh[1])) + 90; a_fo = ang((w[0] - e[0], w[1] - e[1])) + 90     # 0 = hanging straight down
                     rot(f"upper.{sd}", a_up - sp, f); rot(f"fore.{sd}", a_fo - a_up, f)
                 if f"fingers.{sd}" in self.t and f"hand.{sd}" in self.t:      # world direction the fingers point (deg CCW from +x)
-                    phi = a_fo - 90; rot(f"hand.{sd}", self.tr(f"fingers.{sd}").at(f)[0] - phi, f)
+                    phi = a_fo - 90; rel = self.tr(f"fingers.{sd}").at(f)[0] - phi
+                    pr = last.get("rel" + sd, (rel + 180) % 360 - 180); rel = pr + ((rel - pr + 180) % 360 - 180); last["rel" + sd] = rel
+                    rel = ((rel + 180) % 360 - 180) if abs(rel) > 540 else rel
+                    rot(f"hand.{sd}", max(-70.0, min(70.0, rel)), f)                  # a wrist bends, it doesn't spin
                 elif f"handrot.{sd}" in self.t: rot(f"hand.{sd}", self.tr(f"handrot.{sd}").at(f)[0], f)
                 if f"foot.{sd}" in self.t:
                     hp = (s * S["hipW"], z["hip"] + bo); tx, tz = self.tr(f"foot.{sd}").at(f)

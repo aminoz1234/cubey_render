@@ -124,7 +124,7 @@ def holders(obj, spans):
             c.influence = v; c.keyframe_insert("influence", frame=f)
     ad = obj.animation_data
     if ad and ad.action:
-        for fc in getattr(ad.action, "fcurves", []):
+        for fc in rig2.all_fcurves(ad.action):
             for kp in fc.keyframe_points: kp.interpolation = "CONSTANT"
 def pop(o, t_in=None, t_out=None, dur=0.18):
     """scale in/out with a little overshoot"""
